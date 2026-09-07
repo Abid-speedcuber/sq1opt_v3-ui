@@ -8,11 +8,11 @@
 #include "sq1opt-runner.h"
 
 void sq1optSetExtendedOutput(bool val);
-std::vector<int> twoGenPreadf(const int pos[24], int two_gen, bool specific_angle_bot, bool first_match_only);
+std::vector<int> twoGenPreADF(const int pos[24], int two_gen, bool specific_angle_bot, bool first_match_only);
 bool cornersAre2GenSolvable(const int pos[24], int two_gen, bool specific_angle_bot);
 namespace TwoGenExact {
 bool cornersAre2GenSolvableExact(const int pos[24], int two_gen, bool specific_angle_bot);
-std::vector<int> twoGenPreadfExact(const int pos[24], int two_gen, bool specific_angle_bot);
+std::vector<int> twoGenPreADFExact(const int pos[24], int two_gen, bool specific_angle_bot);
 }
 
 namespace {
@@ -160,7 +160,7 @@ extern "C" int sq1_two_gen_compatibility(const int *position, bool specific_angl
     if (!position) return 0;
     if (corners_two) *corners_two = TwoGenExact::cornersAre2GenSolvableExact(position, 2, specific_angle_bot);
     if (corners_pseudo) *corners_pseudo = TwoGenExact::cornersAre2GenSolvableExact(position, 1, specific_angle_bot);
-    if (!TwoGenExact::twoGenPreadfExact(position, 2, specific_angle_bot).empty()) return 2;
-    if (!TwoGenExact::twoGenPreadfExact(position, 1, specific_angle_bot).empty()) return 1;
+    if (!TwoGenExact::twoGenPreADFExact(position, 2, specific_angle_bot).empty()) return 2;
+    if (!TwoGenExact::twoGenPreADFExact(position, 1, specific_angle_bot).empty()) return 1;
     return 0;
 }

@@ -2072,14 +2072,14 @@ void MainWindow::rebuildTerminalView()
 // Returns 2 if the position supports 2-gen (full block on bottom),
 //         1 if it supports pseudo-2-gen only (CEC block on bottom),
 //         0 if neither applies.
-// Delegates to the shared twoGenPreadf() so the block tables live in exactly
-// one place (see sq1opt-runner.h / FullPosition::findPreadf).
+// Delegates to the shared twoGenPreADF() so the block tables live in exactly
+// one place (see sq1opt-runner.h / FullPosition::findPreADF).
 // -------------------------------------------------------
 static int twoGenCompatibility(const Sq1Widget::RawState &s)
 {
-    if (!twoGenPreadf(s.pos, 2, /*firstMatchOnly=*/true).empty())
+    if (!twoGenPreADF(s.pos, 2, /*firstMatchOnly=*/true).empty())
         return 2;
-    if (!twoGenPreadf(s.pos, 1, /*firstMatchOnly=*/true).empty())
+    if (!twoGenPreADF(s.pos, 1, /*firstMatchOnly=*/true).empty())
         return 1;
     return 0;
 }
@@ -2144,7 +2144,7 @@ void MainWindow::updateConstraints()
         }
         // When keeping cube shape with a 2-gen mode, the corner permutation must
         // also be solvable with 2-gen moves (in addition to the block check above),
-        // checked once per valid preadf candidate. Handles concrete and partial.
+        // checked once per valid preADF candidate. Handles concrete and partial.
         else if (is2gen && chkCubeshape->isChecked() && cubeWidget->inCubeshape() && !cornersAre2GenSolvable(rs.pos, (tgId == 0 ? 2 : 1)))
         {
             blocked = true;

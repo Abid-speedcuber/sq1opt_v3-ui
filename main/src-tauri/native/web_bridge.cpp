@@ -9,11 +9,11 @@
 
 void sq1optSetExtendedOutput(bool val);
 
-std::vector<int> twoGenPreadf(const int pos[24], int two_gen, bool specific_angle_bot, bool first_match_only);
+std::vector<int> twoGenPreADF(const int pos[24], int two_gen, bool specific_angle_bot, bool first_match_only);
 bool cornersAre2GenSolvable(const int pos[24], int two_gen, bool specific_angle_bot);
 namespace TwoGenExact {
 bool cornersAre2GenSolvableExact(const int pos[24], int two_gen, bool specific_angle_bot);
-std::vector<int> twoGenPreadfExact(const int pos[24], int two_gen, bool specific_angle_bot);
+std::vector<int> twoGenPreADFExact(const int pos[24], int two_gen, bool specific_angle_bot);
 }
 
 // Static initializer — enables extended output for the WASM bridge before main()
@@ -82,8 +82,8 @@ extern "C" char *sq1_web_two_gen_status_json_alloc(const int *position, bool spe
     }
     const bool corners_two = TwoGenExact::cornersAre2GenSolvableExact(position, 2, specific_angle_bot);
     const bool corners_pseudo = TwoGenExact::cornersAre2GenSolvableExact(position, 1, specific_angle_bot);
-    const int compatibility = !TwoGenExact::twoGenPreadfExact(position, 2, specific_angle_bot).empty() ? 2
-        : !TwoGenExact::twoGenPreadfExact(position, 1, specific_angle_bot).empty() ? 1
+    const int compatibility = !TwoGenExact::twoGenPreADFExact(position, 2, specific_angle_bot).empty() ? 2
+        : !TwoGenExact::twoGenPreADFExact(position, 1, specific_angle_bot).empty() ? 1
         : 0;
     std::ostringstream out;
     out << "{\"compatibility\":" << compatibility

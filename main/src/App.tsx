@@ -2873,7 +2873,7 @@ export default function App() {
     }
     if (allMatches.length === 0) return text;
     allMatches.sort((a, b) => a.start - b.start || a.termIdx - b.termIdx);
-    // Merge overlapping spans; keep the earliest-starting term's colour for each
+    // Merge overlapping spans; keep the earliest-starting term's color for each
     // merged region but split if a later region starts inside but ends outside.
     const regions: { start: number; end: number; termIdx: number }[] = [];
     for (const m of allMatches) {

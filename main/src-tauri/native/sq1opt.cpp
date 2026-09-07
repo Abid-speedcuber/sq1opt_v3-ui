@@ -38,7 +38,7 @@
 #define ANGLE_METRIC 2
 
 const char* errors[]={
-	"Unrecognised command line switch.", //1
+	"Unrecognized command line switch.", //1
 	"Too many command line arguments.",
 	"Input file not found.",//3
 	"Bracket ) expected.",//4
@@ -70,8 +70,6 @@ int karnotation = 0;  // 0=off, 1=plain karn, 2=smart karn
 bool specificAngleTop=false;
 bool specificAngleBot=false;
 int metric = SLICE_METRIC;
-// 0=both  1=preABF  2=postABF  3=none (default — matches old solver-mode behaviour of
-// normalizing postABF, but the UI default is "none" so the user opts in explicitly)
 int maxX = 6;
 int maxY = 6;
 int maxTotal = 12;
@@ -195,9 +193,9 @@ public:
 			if( (tpieces&1)!=0 ) { tpieces+=(1<<12); nEdges++; }
 			tpieces>>=1;
 		}
-		//find out parity of that layer turn
+		// find out parity of the layer turn
 		// Is odd cycle if even # pieces, and odd number passes seam
-		//  Note (turn+edges)/2 = number of pieces crossing seam
+		// (Note (turn+edges)/2 = number of pieces crossing seam)
 		turnParityOdd = (nPieces&1)==0 && ((turnt+nEdges)&2)!=0;
 
 		bpieces=pieces;
@@ -206,9 +204,7 @@ public:
 			bpieces<<=1;
 			if( (bpieces&(1<<12))!=0 ) { bpieces-=(1<<12)-1; nEdges++; }
 		}
-		//find out parity of that layer turn
-		// Is odd cycle if even # pieces, and odd number passes seam
-		//  Note (turn+edges)/2 = number of pieces crossing seam
+		// ditto
 		turnParityOddb = (nPieces&1)==0 && ((turnb+nEdges)&2)!=0;
 
 	}
@@ -305,7 +301,7 @@ public:
 			// no file. calculate table.
 			for( int i=0; i<nShape; i++ ){
 				throwIfStopped();
-				//effect on shape of each move, incuding reflection
+				//effect on shape of each move, including reflection
 				for( int m=0; m<4; m++ ){
 					for( int j=0; j<nShape; j++ ){
 						if( shapeList[i]->tpieces[m] == shapeList[j]->pieces &&
@@ -349,32 +345,32 @@ class ShapeColPos {
 	ShapeTranTable &stt;
 	ChoiceTable &ct;
 	int shapeIx;
-	int colouring; //24bit string
+	int coloring; // 24bit string
 	bool edgesFlag;
 public:
 	ShapeColPos( ShapeTranTable& stt0, ChoiceTable& ct0)
 		: stt(stt0), ct(ct0) {}
 	void set( int shp, int col, bool edges )
 	{
-		// col is 8 bit colouring of one type of piece.
-		// edges set then edge colouring, else corner colouring
-		// get full 24 bit colouring.
+		// col is 8 bit coloring of one type of piece.
+		// edges set then edge coloring, else corner coloring
+		// get full 24 bit coloring.
 		int c=ct.idx2Choice[col];
 		shapeIx = shp;
 		edgesFlag = edges;
-		colouring=0;
+		coloring=0;
 		int s=stt.shapeList[shapeIx]->pieces;
 		if( edges ){
 			for( int m=1, i=0, n=1; i<24; m<<=1, i++){
 				if( (s&m)!=0 ) {
-					if( (c&n)!=0 ) colouring |= m;
+					if( (c&n)!=0 ) coloring |= m;
 					n<<=1;
 				}
 			}
 		}else{
 			for( int m=3, i=0, n=1; i<24; m<<=1, i++){
 				if( (s&m)==0 ) {
-					if( (c&n)!=0 ) colouring |= m;
+					if( (c&n)!=0 ) coloring |= m;
 					n<<=1;
 					m<<=1; i++;
 				}
@@ -389,22 +385,22 @@ public:
 		const int leftmask = botmask+topmask-botrmask-toprmask;
 		if( m==0 ){
 			int tn=stt.getTopTurn(shapeIx);
-			int b=colouring&botmask;
-			int t=colouring&topmask;
+			int b=coloring&botmask;
+			int t=coloring&topmask;
 			t+=(t>>12);
 			t<<=(12-tn);
-			colouring = b + (t&topmask);
+			coloring = b + (t&topmask);
 		}else if( m==1 ){
 			int tn=stt.getBotTurn(shapeIx);
-			int b=colouring&botmask;
-			int t=colouring&topmask;
+			int b=coloring&botmask;
+			int t=coloring&topmask;
 			b+=(b<<12);
 			b>>=(12-tn);
-			colouring = t + (b&botmask);
+			coloring = t + (b&botmask);
 		}else if( m==2 ){
-			int b=colouring&botrmask;
-			int t=colouring&toprmask;
-			colouring = (colouring&leftmask) + (t>>6) + (b<<6);
+			int b=coloring&botrmask;
+			int t=coloring&toprmask;
+			coloring = (coloring&leftmask) + (t>>6) + (b<<6);
 		}
 		shapeIx=stt.tranTable[shapeIx][m];
 	}
@@ -414,14 +410,14 @@ public:
 		if( edgesFlag ){
 			for( int m=1, i=0; i<24; m<<=1, i++){
 				if( (s&m)!=0 ) {
-					if( (colouring&m)!=0 ) c |= n;
+					if( (coloring&m)!=0 ) c |= n;
 					n<<=1;
 				}
 			}
 		}else{
 			for( int m=3, i=0; i<24; m<<=1, i++){
 				if( (s&m)==0 ) {
-					if( (colouring&m)!=0 ) c |= n;
+					if( (coloring&m)!=0 ) c |= n;
 					n<<=1;
 					m<<=1; i++;
 				}
@@ -477,60 +473,54 @@ public:
 	}
 };
 
-// FullPosition holds position with each piece individually specified.
-// Pieces 0-7 are corners and appear twice in a row. Pieces 8-15 are edges and appear once
-// Returns the valid preadf D rotations (doBot amounts) for 2-gen / pseudo-2-gen.
-//
-// A preadf is a doBot() amount k that rotates a solved block into the "frozen"
-// bottom-left region (pos[18..23], i.e. offsets 6..11 after the rotation) so the
-// remainder can be solved without further D moves between the first and last
-// slice.  The post-last-slice D (postabf) that re-homes the globally-rotated D
-// layer is NOT computed here — the solver discovers it as a real move via the
-// slice-point check.
-//
-// For twoGen==2: any of the 8 contiguous 6-slot windows of the solved D layer
-//   (M·E·N·F·O·G·P·H) must land in bottom-left.  D-right is frozen.
-// For twoGen==1: any of the 4 solved CEC blocks can land at offsets 7..11 or
-//   6..10; the extra ±1 D allowed between slices covers the wiggle.
-// For twoGen==0: returns {0} (no preadf).
-//
-// After doBot(k): new pos[12+i] == old pos[12 + (i−k+12)%12].
-//
-// Single source of truth shared by FullPosition::findPreadf (solver) and the
-// UI's Solve-button enable check; declared in sq1opt-runner.h.
-// Whether a position value (concrete 0-15, or partially-specified: corner <0,
-// edge >15, with value%3 selecting up/down/any) could represent the concrete
-// piece `target` (0-15).  Mirror of FullPosition::singleMatch as a free function.
+/*
+ * Find valid preADFs for 2-gen (2g) / pseudo-2-gen (p2g).
+ *
+ * A valid preADF is a doBot() amount that rotates a solved block into DL
+ * (pos[18..23], i.e. offsets 6..11 after the rotation).
+ *
+ * 2g: any solved CECE/ECEC must land in DL.
+ * p2g: any solved CEC block can land at offsets 7..11 or 6..10
+ * none: returns {0} (no preADF).
+ *
+ * after doBot(k): new pos[12+i] == old pos[12 + (i−k+12)%12].
+ *
+ * declared in sq1opt-runner.h.
+ */
+
+// whether a piece value (concrete or partial) could represent a concrete piece `target`
 bool couldBe(int posVal, int target) {
 	if (posVal == target) return true;
-	if (posVal>15 && posVal%3==0  && target>=8  && target<=11) return true; // edge up (X)
-	if (posVal>15 && posVal%3==1  && target>=12 && target<=15) return true; // edge down (Y)
-	if (posVal<0  && posVal%3==0  && target>=0  && target<=3)  return true; // corner up (U)
-	if (posVal<0  && posVal%3==-2 && target>=4  && target<=7)  return true; // corner down (V)
-	if (posVal>15 && posVal%3==2  && target>=8  && target<=15) return true; // edge any (Z)
-	if (posVal<0  && posVal%3==-1 && target>=0  && target<=7)  return true; // corner any (W)
+	if (posVal>15 && posVal%3==0  && target>=8  && target<=11) return true; // top edge (X)
+	if (posVal>15 && posVal%3==1  && target>=12 && target<=15) return true; // bot edge (Y)
+	if (posVal<0  && posVal%3==0  && target>=0  && target<=3)  return true; // top corner (U)
+	if (posVal<0  && posVal%3==-2 && target>=4  && target<=7)  return true; // bot corner (V)
+	if (posVal>15 && posVal%3==2  && target>=8  && target<=15) return true; // any edge (Z)
+	if (posVal<0  && posVal%3==-1 && target>=0  && target<=7)  return true; // any corner (W)
 	return false;
 }
 
-// Piece-count validity of a pos[24] array — the same rules enforced by
-// Sq1Widget::setPositionFromString and FullPosition::parseInput: every concrete
-// piece (0-15) appears at most once, and no layer holds more than 4 corners or 4
-// edges of its type (8 total of each).  Side-effect free; corners occupy two
-// adjacent slots.  Assumes a well-formed array (corner halves adjacent), which
-// holds for any real position and for fills that don't split a corner across the
-// 23/12 boundary (such fills produce a duplicate and are rejected here anyway).
+/**
+ * Validity of pos[24]
+ * (same as Sq1Widget::setPositionFromString and FullPosition::parseInput)
+ *
+ * 1. concrete pieces appear at most once
+ * 2. at most 4 C/E of each color
+ *
+ * Assumes a well-formed array (corner halves adjacent).
+ */
 bool validPosition(const int pos[24]) {
 	int pieceCount[16] = {0};
 	int cUp=0, cDown=0, cTot=0, eUp=0, eDown=0, eTot=0;
 	for (int i=0; i<24; i++) {
 		int k = pos[i];
 		if (k>=0 && k<=15) { if (++pieceCount[k] > 1) return false; }
-		if (k<8) { // corner (concrete 0-7 or partial <0)
+		if (k<8) {
 			cTot++;
 			if ((k<0 && k%3==0)  || (k>=0 && k<=3)) cUp++;
 			if ((k<0 && k%3==-2) || (k>=4 && k<=7)) cDown++;
-			i++; // corners occupy two slots
-		} else {   // edge (concrete 8-15 or partial >15)
+			i++;
+		} else {
 			eTot++;
 			if ((k>15 && k%3==0) || (k>=8  && k<=11)) eUp++;
 			if ((k>15 && k%3==1) || (k>=12 && k<=15)) eDown++;
@@ -540,11 +530,11 @@ bool validPosition(const int pos[24]) {
 	return true;
 }
 
-std::vector<int> twoGenPreadf(const int pos[24], int twoGen, bool specificAngleBot = false, bool firstMatchOnly = false) {
+std::vector<int> twoGenPreADF(const int pos[24], int twoGen, bool specificAngleBot = false, bool firstMatchOnly = false) {
 	std::vector<int> result;
 	if (twoGen == 0) { result.push_back(0); return result; }
 
-	// all 8 differently colored cece/ecec blocks
+	// all 8 possible CECE/ECEC blocks
 	static const int blocks2g[8][6] = {
 		{14, 6, 6,15, 7, 7}, // 7G8H (solved DL)
 		{15, 7, 7,12, 4, 4}, // 8H5E
@@ -555,7 +545,7 @@ std::vector<int> twoGenPreadf(const int pos[24], int twoGen, bool specificAngleB
 		{ 4, 4,13, 5, 5,14}, // E6F7
 		{ 5, 5,14, 6, 6,15}, // F7G8
 	};
-	// all 4 differently colored cec blocks
+	// all 4 possible CEC blocks
 	static const int blocksP2g[4][5] = {
 		{4,4,13,5,5}, // E6F
 		{5,5,14,6,6}, // F7G
@@ -563,14 +553,12 @@ std::vector<int> twoGenPreadf(const int pos[24], int twoGen, bool specificAngleB
 		{7,7,12,4,4}, // H5E
 	};
 
-	// k represents the bottom move.
-	// For each k, DL is at offsets 6..11 (2g) — or 7..11 / 6..10 (p2g).
-	// realIdx(i) is the pos[] index that lands at bottom offset i after doBot(k).
-	// A candidate is valid if it couldBe() some block W AND writing W's concrete
-	// pieces there leaves a valid state (no piece used twice / no extra colors).
-	// This handles both concrete and partial positions.
+	/*
+	 * k = D move
+	 * realIdx(i) = pos[] index that lands at bottom offset i after doBot(k).
+	 * being valid = couldBe() W AND that leaves a valid state
+	 */
 	for (int k = 0; k < 12; k++) {
-		// if bottom angle locked, only allow those bottom moves
 		if (specificAngleBot && k != 0 && k != 1 && k != 11) continue;
 		auto realIdx = [&](int i) { return 12 + (i - k + 12) % 12; };
 		bool ok = false;
@@ -599,15 +587,13 @@ std::vector<int> twoGenPreadf(const int pos[24], int twoGen, bool specificAngleB
 		}
 		if (ok) {
 			result.push_back(k);
-			// The UI only needs to know whether ANY preadf exists; the solver needs
-			// the full set.  firstMatchOnly lets the UI bail out on the first hit.
 			if (firstMatchOnly) return result;
 		}
 	}
 	return result;
 }
 
-static inline void colourShift24(int out[24], const int in[24], int aufAmt, int adfAmt) {
+static inline void colorShift24(int out[24], const int in[24], int aufAmt, int adfAmt) {
 	for (int i = 0; i < 24; i++) {
 		int v = in[i];
 		if      (v >= 0  && v <= 3)  out[i] = (v + aufAmt) & 3;
@@ -618,13 +604,13 @@ static inline void colourShift24(int out[24], const int in[24], int aufAmt, int 
 	}
 }
 
-// smallest of the 16 colour-shifted variants for comparisons
-static std::array<int,24> canonicalColourForm(const int pos[24]) {
+// smallest of the 16 color-shifted variants for comparisons
+static std::array<int,24> canonicalcolorForm(const int pos[24]) {
 	std::array<int,24> best{};
 	int shifted[24];
 	for (int t = 0; t < 4; t++) {
 		for (int b = 0; b < 4; b++) {
-			colourShift24(shifted, pos, t, b);
+			colorShift24(shifted, pos, t, b);
 			std::array<int,24> cand;
 			for (int i = 0; i < 24; i++) cand[i] = shifted[i];
 			if ((t == 0 && b == 0) || cand < best) best = cand;
@@ -649,10 +635,10 @@ static inline void rotateSlots(int arr[24], int lo, int m) {
 }
 
 // Enumerates every preABF pair, applies the 2-gen preADF constraint,
-// and dedups by colour-shift. Sorted ascending by abf amount.
+// and dedups by color-shift. Sorted ascending by abf amount.
 std::vector<std::pair<int,int>> symmetricPreABF(const int origPos[24], int twoGen, bool specificAngleBot, bool specificAngleTop) {
 	std::vector<int> adfAllowed;
-	if (twoGen != 0) adfAllowed = twoGenPreadf(origPos, twoGen, specificAngleBot, false);
+	if (twoGen != 0) adfAllowed = twoGenPreADF(origPos, twoGen, specificAngleBot, false);
 
 	struct Cand { int auf, adf; };
 	std::vector<Cand> cands;
@@ -682,7 +668,7 @@ std::vector<std::pair<int,int>> symmetricPreABF(const int origPos[24], int twoGe
 		if (!(work[0]!=work[11] && work[5]!=work[6] && work[12]!=work[23] && work[17]!=work[18])) continue; // not sliceable
 		int shape = 0;
 		for (int i = 0; i < 24; i++) if (work[i] >= 8) shape |= (1 << (23 - i));
-		auto canon = canonicalColourForm(work);
+		auto canon = canonicalcolorForm(work);
 		auto& bucket = seenByShape[shape];
 		bool dup = false;
 		for (const auto& prev : bucket) if (prev == canon) { dup = true; break; }
@@ -693,10 +679,11 @@ std::vector<std::pair<int,int>> symmetricPreABF(const int origPos[24], int twoGe
 	return result;
 }
 
-// Whether the corner permutation is reachable with 2-gen.
-// Reads the corners from pos[0..17] (top layer + bottom-right).
-// Used by the solver's keep-cube-shape p2g guard and the UI's Solve-button enable check.
-// Single source of truth; declared in sq1opt-runner.h.
+/**
+ * Whether the corner permutation is reachable with 2-gen.
+ *
+ * declared in sq1opt-runner.h.
+ */
 bool has2GenCorners(const int pos[24]) {
 	// get corners
 	int tmp[6];
@@ -707,7 +694,7 @@ bool has2GenCorners(const int pos[24]) {
 			j++;
 		}
 	}
-	// place D corners - if we find a D corner on U, AUF and then insert
+	// AUF and then insert a D corner on U, if there is one.
 	int found_d = -1;
 	for (int i=0; i<4; i++) if(tmp[i]>3) found_d = i;
 	if (found_d > -1) {
@@ -726,7 +713,7 @@ bool has2GenCorners(const int pos[24]) {
 		int k = tmp[0]; tmp[0] = tmp[5]; tmp[5] = k;
 		k = tmp[1]; tmp[1] = tmp[2]; tmp[2] = k;
 	}
-	// adjust if D corners are swapped, then AUF
+	// NJ if D corners are swapped
 	if (tmp[4] == 5 && tmp[5] == 4) {
 		tmp[4] = 4; tmp[5] = 5;
 		int k = tmp[0]; tmp[0] = tmp[2]; tmp[2] = k;
@@ -742,32 +729,29 @@ bool has2GenCorners(const int pos[24]) {
 	return false;
 }
 
-// Partial-aware version of has2GenCorners.  Like has2GenCorners it assumes the two
-// bottom-left corners are solved (G,H = 6,7) and works with the other 6 corners
-// (pos[0..17]); the caller is responsible for placing a valid candidate block at
-// bottom-left first.  Resolves partial corners by elimination *respecting each
-// partial's layer constraint* (U=top corner 0-3, V=bottom corner 4-7, W=any),
-// then defers to the concrete has2GenCorners:
-//   * 0 partials   -> plain has2GenCorners.
-//   * >=3 partials -> always solvable (enough free corners): true.
-//   * 1-2 partials -> the missing corners of {0..5} are the candidates; try every
-//                     assignment of them to the partial slots that is layer-valid
-//                     (so two W's are interchangeable, but a U can't take a bottom
-//                     corner, etc.) and accept if any resulting concrete state
-//                     passes has2GenCorners.
+/**
+ * partial version of has2GenCorners
+ * (DFL and DBL should be solved first)
+ * 1. looks at the 6 corners other than DFL and DBL
+ * 1. Resolves partial corners by elimination
+ * 2. then defers to the concrete has2GenCorners:
+ * 		0 partials   -> plain has2GenCorners
+ * 		>=3 partials -> always true
+ * 		1-2 partials -> OR all ways of concrete completions (respect partial's layers)
+ */
 bool partialHas2GenCorners(const int pos[24]) {
-	int slot[6];          // first slot index of each of the 6 corners
+	int slot[6];          // slot index for the 6 corners
 	int ptype[6];         // partial type: 0=U(top), 1=V(bottom), 2=W(any), -1=concrete
-	bool present[8] = {false}; // which concrete corner values appear among the 6
+	bool present[8] = {false}; // which concrete corners are present among the 6?
 	int n = 0;
 	for (int i = 0; i < 18 && n < 6; i++) {
-		if (pos[i] < 8) { // corner (concrete 0-7 or partial <0)
+		if (pos[i] < 8) { // corner
 			int v = pos[i];
 			slot[n] = i;
 			if (v < 0) ptype[n] = (v % 3 == 0) ? 0 : (v % 3 == -2 ? 1 : 2);
 			else { ptype[n] = -1; present[v] = true; }
 			n++;
-			i++; // skip the duplicate corner slot
+			i++;
 		}
 	}
 
@@ -777,14 +761,13 @@ bool partialHas2GenCorners(const int pos[24]) {
 	if (numPartial == 0) return has2GenCorners(pos);
 	if (numPartial >= 3) return true;
 
-	// Candidate corners for the partials: {0..5} (bottom-left holds 6,7) minus the
-	// concrete corners already present among the 6.
+	// unused concrete piece: non-6/7 & not `present`
 	int avail[6], nA = 0;
 	for (int c = 0; c < 6; c++) if (!present[c]) avail[nA++] = c;
 	if (nA != numPartial) return false; // inconsistent input
 
-	// A corner value is compatible with a partial slot iff it lies in the slot's
-	// allowed layer: U -> 0-3, V -> 4-7, W -> anything.
+	// A corner is compatible with a partial slot iff it lies in the slot's layer:
+	// U -> 0-3, V -> 4-7, W -> anything.
 	auto compat = [](int type, int val) {
 		if (type == 0) return val >= 0 && val <= 3;
 		if (type == 1) return val >= 4 && val <= 7;
@@ -800,29 +783,28 @@ bool partialHas2GenCorners(const int pos[24]) {
 	};
 
 	if (numPartial == 1) return tryAssign(avail[0], 0);
-	// numPartial == 2: try both layer-valid assignments of the two candidate corners.
 	return tryAssign(avail[0], avail[1]) || tryAssign(avail[1], avail[0]);
 }
 
-// "Are the corners 2g for this position, evaluated once per valid preadf candidate?"
-// For each preadf k, we do it, and then color shift it to be G,H
-// (UVXY pass through untouched).
-// The position is corner-2-gen-solvable iff ANY candidate passes.
-// specificAngleBot: UI state. restrict k.
+/**
+ * "Do any preADF candidate of this position have 2g corners?"
+ * For each preADF k, we do it, and then color shift it to be G,H (UVWXYZ unchanged).
+ * specificAngleBot = lock k to -1, 0, 1
+ */
 bool cornersAre2GenSolvable(const int pos[24], int twoGen, bool specificAngleBot = false) {
 	if (twoGen == 0) return true;
-	static const int C[24] = {0,0,8,1,1,9,2,2,10,3,3,11,12,4,4,13,5,5,14,6,6,15,7,7};
+	static const int C[24] = {0,0,8,1,1,9,2,2,10,3,3,11,12,4,4,13,5,5,14,6,6,15,7,7}; // solved
 	auto doBotArr = [](int a[24], int m){
 		m = ((m % 12) + 12) % 12;
 		while (m-- > 0) { int c = a[23]; for (int i=23;i>12;i--) a[i]=a[i-1]; a[12]=c; }
 	};
-	for (int k : twoGenPreadf(pos, twoGen, specificAngleBot)) {
+	for (int k : twoGenPreADF(pos, twoGen, specificAngleBot)) {
 		int copy[24]; for (int i=0;i<24;i++) copy[i]=pos[i]; doBotArr(copy, k);
 		int cano; // the amount to color shift by
 		if (copy[23] >= 0 && copy[23] < 8) cano = (7 - copy[23]) * 3; // corner
 		else cano = (7 - copy[22]) * 3; // last piece was an edge, take [22] instead
 		int Ck[24]; for (int i=0;i<24;i++) Ck[i]=C[i]; doBotArr(Ck, cano);
-		int sigma[8]; for (int i=0;i<8;i++) sigma[i]=i;
+		int sigma[8]; for (int i=0;i<8;i++) sigma[i]=i; // sigma: the color shift mapping
 		for (int i=0;i<24;i++) if (Ck[i] >= 0 && Ck[i] < 8) sigma[Ck[i]] = C[i];
 		for (int i=0;i<24;i++) if (copy[i] >= 0 && copy[i] < 8) copy[i] = sigma[copy[i]];
 		if (partialHas2GenCorners(copy)) return true;
@@ -830,32 +812,29 @@ bool cornersAre2GenSolvable(const int pos[24], int twoGen, bool specificAngleBot
 	return false;
 }
 
-// ---------------------------------------------------------------------------
-// Exact (non-heuristic) 2-gen compatibility / preadf enumeration.
-//
-// twoGenPreadf()/cornersAre2GenSolvable() above doesn't take into account
-// the seperate identity of partial pieces. The function below does.
-//
-// Input convention (matches solver.ts rawPosition(); different from FullPosition):
-//   concrete/UVWXYZ   unchanged
-//   <= -1000          duplicate declaration of corner piece p (0-7): -1000 - p
-//   >= 1000           duplicate declaration of edge piece p (8-15):   1000 + p
-// ---------------------------------------------------------------------------
+/**
+ * 2-gen compatibility / preADF enumeration.
+ * Enumerate all possible positions from partial/duplicate-piece states,
+ * and then calls functions above.
+ * Input (matches solver.ts rawPosition(); different from FullPosition):
+ * 		concrete/UVWXYZ   unchanged
+ * 		<= -1000          duplicate declaration of corner piece p (0-7): -1000 - p
+ * 		>= 1000           duplicate declaration of edge piece p (8-15):   1000 + p
+ */
 namespace TwoGenExact {
 
 struct OpenSlot {
-	int index;   // pos[] index (corner slots occupy index and index+1)
+	int index;   // pos[] index
 	bool corner;
-	int layer;   // 0 = top only, 1 = bottom only, 2 = any
+	int layer;   // 0 = top, 1 = bottom, 2 = any
 };
 
 struct DupGroup {
 	int piece;                // 0-15
-	std::vector<int> members; // pos[] indices sharing this duplicate declaration
+	std::vector<int> members; // all pos[] indices defined with this piece
 };
 
-// Enumerates every fully concrete completion of `pos` and calls `visit` on
-// each one. (true iff some completion made it stop early)
+// OR the results of `visit` on all concrete completions of `pos`
 template <typename Visit>
 bool forEachCompletion(const int pos[24], Visit&& visit) {
 	int copy[24];
@@ -863,7 +842,7 @@ bool forEachCompletion(const int pos[24], Visit&& visit) {
 
 	bool used[16] = {false};
 	std::vector<DupGroup> groups;
-	std::vector<OpenSlot> openSlots;
+	std::vector<OpenSlot> openSlots; // partial + duplicated open slots
 
 	for (int i = 0; i < 24; i++) {
 		int v = pos[i];
@@ -880,16 +859,16 @@ bool forEachCompletion(const int pos[24], Visit&& visit) {
 			if (p < 8) i++;
 			continue;
 		}
+		// a normal partial piece
 		bool corner = v < 0;
 		int layer = corner ? (v % 3 == 0 ? 0 : v % 3 == -2 ? 1 : 2)
 		                    : (v % 3 == 0 ? 0 : v % 3 == 1 ? 1 : 2);
 		openSlots.push_back({i, corner, layer});
 		if (corner) i++;
 	}
-	for (auto &g : groups) used[g.piece] = true; // reserved, never part of the general pool
+	for (auto &g : groups) used[g.piece] = true; // reserve concrete/duplicated pieces
 
-	// Remaining candidate identities per type, consumed/restored as the search
-	// assigns and backtracks over open slots.
+	// Remaining candidates for both piece types, consumed/restored by the search.
 	std::vector<int> cornerPool, edgePool;
 	for (int p = 0; p < 8;  p++) if (!used[p]) cornerPool.push_back(p);
 	for (int p = 8; p < 16; p++) if (!used[p]) edgePool.push_back(p);
@@ -900,10 +879,9 @@ bool forEachCompletion(const int pos[24], Visit&& visit) {
 		return layer == 0 ? (p < 12) : (p >= 12);
 	};
 
-	// Assign every open slot (generic wildcards + un-pinned duplicate leftovers),
-	// one at a time, backtracking on the shared corner/edge pools.
+	// Assign every open slot one at a time, modifying the shared corner/edge pools as we go.
 	std::function<bool(size_t)> assign = [&](size_t idx) -> bool {
-		if (idx == openSlots.size()) return visit(copy);
+		if (idx == openSlots.size()) return visit(copy); // once everything assigned, call visit()
 		auto &slot = openSlots[idx];
 		auto &pool = slot.corner ? cornerPool : edgePool;
 		for (size_t k = 0; k < pool.size(); k++) {
@@ -919,10 +897,9 @@ bool forEachCompletion(const int pos[24], Visit&& visit) {
 		return false;
 	};
 
-	// For each duplicate group, try pinning each member to the group's piece;
-	// the other members become ordinary "any" open slots feeding the pool search.
+	// for each duplicate group, pin the piece to any of the slots (the rest become W/Z pieces)
 	std::function<bool(size_t)> pin = [&](size_t gi) -> bool {
-		if (gi == groups.size()) return assign(0);
+		if (gi == groups.size()) return assign(0); // once everything pinned, assign()
 		auto &g = groups[gi];
 		bool corner = g.piece < 8;
 		for (size_t chosen = 0; chosen < g.members.size(); chosen++) {
@@ -933,7 +910,7 @@ bool forEachCompletion(const int pos[24], Visit&& visit) {
 					copy[idx] = g.piece;
 					if (corner) copy[idx + 1] = g.piece;
 				} else {
-					openSlots.push_back({idx, corner, 2}); // leftover: any piece of this type
+					openSlots.push_back({idx, corner, 2});
 				}
 			}
 			bool stop = pin(gi + 1);
@@ -946,8 +923,7 @@ bool forEachCompletion(const int pos[24], Visit&& visit) {
 	return pin(0);
 }
 
-// Exact compatibility: true iff ANY completion is 2-gen (or pseudo-2-gen)
-// solvable. Short-circuits on the first success.
+// is ANY completion 2g?
 bool cornersAre2GenSolvableExact(const int pos[24], int twoGen, bool specificAngleBot = false) {
 	if (twoGen == 0) return true;
 	return forEachCompletion(pos, [&](const int completed[24]) {
@@ -955,15 +931,16 @@ bool cornersAre2GenSolvableExact(const int pos[24], int twoGen, bool specificAng
 	});
 }
 
-// Exact preadf: union of every valid bottom angle across every completion.
-// Keeps searching until every completion is tried or all 12 angles are
-// already found (nothing left to gain).
-std::vector<int> twoGenPreadfExact(const int pos[24], int twoGen, bool specificAngleBot = false) {
+/**
+ * Union of every valid preADF across all completions.
+ * Keeps searching until either completions or preADFs are exhausted.
+ */
+std::vector<int> twoGenPreADFExact(const int pos[24], int twoGen, bool specificAngleBot = false) {
 	if (twoGen == 0) return {0};
 	bool found[12] = {false};
 	int total = 0;
 	forEachCompletion(pos, [&](const int completed[24]) {
-		for (int k : twoGenPreadf(completed, twoGen, specificAngleBot)) {
+		for (int k : twoGenPreADF(completed, twoGen, specificAngleBot)) {
 			if (!found[k]) { found[k] = true; total++; }
 		}
 		return total >= 12;
@@ -976,21 +953,21 @@ std::vector<int> twoGenPreadfExact(const int pos[24], int twoGen, bool specificA
 }
 
 
-// Tracks a group of positions where the same concrete piece was declared multiple times.
-// Each group gets its own wildcard value range so the solver can enforce:
-// "at least one of these wildcards must land at the duplicated piece's solved position."
+// Tracks a group where the same concrete piece was declared multiple times (duplicated).
 struct DuplicateSpec {
 	int pieceValue;    // 0-7 for corners, 8-15 for edges
-	int solvedPosIdx;  // pos[] index where this piece lives in solved state
+	int solvedPosIdx;  // pos[] index of this piece in solved state
 	int count;         // how many times it appeared
-	int baseValue;     // base T/S value for this group (unique per group)
-	int values[8];     // the actual T/S values assigned (up to 8 occurrences)
+	int baseValue;     // base piece value for this group (unique)
+	int values[8];     // the actual values assigned (up to 8)
 };
 
-// Piece numbers below 0 are partially specified corners. Based on the value modulo 3, it's a
-//  top corner (0), bottom corner (-2), or any corner (-1).
-// Piece numbers above 15 are partially specified edges. Based on the value modulo 3, it's
-//  top edge (0), bottom edge (1), or any edge (2).
+/*
+ * Piece numbers below 0 are partially specified corners.
+ * Based on the value modulo 3, it's a top corner (0), bottom corner (-2), or any corner (-1).
+ * Piece numbers above 15 are partially specified edges.
+ * Based on the value modulo 3, it's top edge (0), bottom edge (1), or any edge (2).
+ */
 class FullPosition {
 public:
 	int pos[24];
@@ -1009,12 +986,12 @@ public:
 		static const int posToInput[24] = {0,0,1,2,2,3,4,4,5,6,6,7,8,9,9,10,11,11,12,13,13,14,15,15};
 		for(int i=0; i<24; i++){
 			if (pos[i] > 43) {
-				// S value (tracked wildcard for duplicate edges)
+				// duplicate edge
 				std::cout<<inputChars[posToInput[i]];
 			} else if (pos[i] > 15) {
 				std::cout<<"XYZ"[pos[i]%3];
 			} else if (pos[i] < 0 && pos[i] <= -25) {
-				// T value (tracked wildcard for duplicate corners)
+				// duplicate corner
 				std::cout<<inputChars[posToInput[i]];
 			} else if (pos[i] < 0) {
 				std::cout<<"UWV"[(-pos[i])%3];
@@ -1028,7 +1005,7 @@ public:
 	void random(int twoGen, bool keepCubeShape){
 		middle = (rand()&1)!=0?-1:1;
 		do{
-			//make starting position
+			// make starting position
 			int tmp[16];
 			for( int i=0; i<8; i++) {
 				tmp[2*i + (i>3?1:0)] = i;
@@ -1065,7 +1042,7 @@ public:
 					int k=tmp[i];tmp[i]=tmp[i+j];tmp[i+j]=k;
 				}
 			}
-			//convert to position array
+			// convert to position array
 			for(int i=0, j=0;i<16;i++){
 				pos[j++]=tmp[i];
 				if( tmp[i]<8 ) pos[j++]=tmp[i];
@@ -1158,7 +1135,7 @@ public:
 		}
 		return(p);
 	}
-	int getEdgeColouring(int cl){
+	int getEdgeColoring(int cl){
 		const int clp[3][4]={ { 8, 9,10,11}, { 8, 9,13,14}, {15,14,10, 9} };
 		int c=0;
 		int cnt=0;
@@ -1178,7 +1155,7 @@ public:
 		if (cnt==4) return c;
 		else return -1;
 	}
-	int getCornerColouring(int cl){
+	int getCornerColoring(int cl){
 		const int clp[3][4]={ {0,1,2,3}, {0,1,5,6}, {7,6,2,1} };
 		int c=0;
 		int cnt=0;
@@ -1332,7 +1309,7 @@ public:
 			for (int i=0; i<16; i++) pieceCount[i] = 0;
 			for (int i=0; i<6; i++) cecount[i] = 0;
 
-			// store original input characters for T/S print-back
+			// store original input characters for duplicate pieces print-back
 			for (int i=0; i<16; i++) {
 				char c = inp[i];
 				if (c >= 'a' && c <= 'z') c += 'A'-'a';
@@ -1347,7 +1324,7 @@ public:
 				else if(k>='1' && k<='8') pieceCount[k-'1'+8]++;
 			}
 
-			// set up T/S value ranges for duplicate groups
+			// set up duplicate piece value ranges for duplicate groups
 			// corner groups: base = -25, -49, -73, ... (spacing 24)
 			//   values go DOWN: base, base-3, base-6, ... (all mod 3 == -1, like W)
 			// edge groups:   base = 44, 68, 92, ...   (spacing 24)
@@ -1393,7 +1370,7 @@ public:
 							memset(ds.values, 0, sizeof(ds.values));
 							duplicates.push_back(ds);
 						}
-						// find group and assign T value: base, base-3, base-6, ...
+						// find group and assign duplicate value: base, base-3, base-6, ...
 						for (size_t g=0; g<duplicates.size(); g++) {
 							if (duplicates[g].pieceValue == pidx) {
 								k = duplicates[g].baseValue - 3*duplicates[g].count;
@@ -1431,7 +1408,7 @@ public:
 							memset(ds.values, 0, sizeof(ds.values));
 							duplicates.push_back(ds);
 						}
-						// find group and assign S value: base, base+3, base+6, ...
+						// find group and assign duplicate value: base, base+3, base+6, ...
 						for (size_t g=0; g<duplicates.size(); g++) {
 							if (duplicates[g].pieceValue == pidx) {
 								k = duplicates[g].baseValue + 3*duplicates[g].count;
@@ -1476,11 +1453,10 @@ public:
 		}
 		return(0);
 	}
-	// assuming we're in a square/square shape, check if the corners are solvable with 2gen
-	// Whether the corners can be solved with pseudo-2-gen moves — see has2GenCorners().
+	// assuming we're in a squares, check if the corners are solvable with 2gen
 	bool has2GenCorners(){ return ::has2GenCorners(pos); }
-	// Valid preadf D rotations for 2-gen / pseudo-2-gen — see twoGenPreadf().
-	std::vector<int> findPreadf(int twoGen) const { return twoGenPreadf(pos, twoGen, specificAngleBot, false); }
+	// valid preADF for 2g/p2g
+	std::vector<int> findPreADF(int twoGen) const { return twoGenPreADF(pos, twoGen, specificAngleBot, false); }
 	bool singleMatch(int posI, int solvedI) { return couldBe(posI, solvedI); }
 	bool matchesSolved() {
 		int solved[24] = {0, 0, 8, 1, 1, 9, 2, 2, 10, 3, 3, 11, 12, 4, 4, 13, 5, 5, 14, 6, 6, 15, 7, 7};
@@ -1498,30 +1474,19 @@ public:
 
 };
 
-// shape table by checkKeepCubeShape; parity-opposite twins are excluded).
+// "is this good squares?"
 static inline bool isCubeShape(int shp) {
 	return shp==5052 || shp==4148 || shp==5039 || shp==4163;
 }
 
-// The 4 legal cubeshape indices, mirror/top/bot-closed among themselves
-// (verified: tranTable[.][0,1,3] never leave this set of 4). Slice
-// (tranTable[.][2]) only stays in-set for 5052 and 4148 (both self-loops);
-// from 5039 and 4163, slicing always leaves cubeshape, so there is no legal
-// slice from those two shapes while staying in -c mode.
-// local2raw[i] is the raw NUMSHAPES-space index for local index i.
+// used to map cubeshape indices to `table` indices in CubePrunTable
 static const int CUBE_LOCAL2RAW[4] = {4148, 4163, 5039, 5052};
 static inline int cubeRaw2Local(int raw) {
 	for (int i=0; i<4; i++) if (CUBE_LOCAL2RAW[i]==raw) return i;
 	return -1;
 }
 
-// Restricted pruning table over just the 4 cubeshape-legal shapes, used
-// exclusively by -c mode in place of the general NUMSHAPES-row PrunTable.
-// Mirrors PrunTable's metric-specific BFS variants exactly, just scoped to
-// the 4-shape subgraph: the flood fill here can never step outside
-// cubeshape (every raw-shape transition is checked against cubeRaw2Local
-// before being followed; the two shapes with no legal slice simply skip
-// the slice branch for that metric's move-type loop).
+// Pruning table restricted to cubeshape only.
 class CubePrunTable {
 public:
 	char (*table)[70][70]; // [4][70][70]
@@ -1549,8 +1514,8 @@ public:
 			int s0raw = stt.getShape(p0.getShape(), p0.getParityOdd());
 			int s0 = cubeRaw2Local(s0raw);
 			if( s0>=0 ){
-				int e0 = p0.getEdgeColouring(cl);
-				int c0 = p0.getCornerColouring(cl);
+				int e0 = p0.getEdgeColoring(cl);
+				int c0 = p0.getCornerColoring(cl);
 				e0 = scte0.ct.choice2Idx[e0];
 				c0 = sctc0.ct.choice2Idx[c0];
 				if (metric == TURN_METRIC || metric == ANGLE_METRIC) {
@@ -1579,7 +1544,7 @@ public:
 											j1=scte.tranTable[rawJ0][j1][m];
 											rawJ0=stt.tranTable[rawJ0][m];
 											int locJ0 = cubeRaw2Local(rawJ0);
-											if( locJ0<0 ) break; // leaves cubeshape -- no legal orbit here
+											if( locJ0<0 ) break;
 											if( table[locJ0][j1][j2]==0 ){
 												table[locJ0][j1][j2]=l+1;
 												n++;
@@ -1612,7 +1577,7 @@ public:
 											j1=scte.tranTable[rawJ0][j1][m];
 											rawJ0=stt.tranTable[rawJ0][m];
 											int locJ0 = cubeRaw2Local(rawJ0);
-											if( locJ0<0 ) break; // leaves cubeshape -- no legal orbit here
+											if( locJ0<0 ) break;
 											if (m==2) {
 												newcnt = l + 1;
 											} else {
@@ -1660,9 +1625,8 @@ public:
 	}
 	~CubePrunTable(){ delete[] table; }
 
-	// set a position to depth l, as well as all top/bottom-turn rotations of
-	// it (all of which stay within the 4-shape cubeshape set, verified).
-	// Slice-metric only (mirrors PrunTable::setAll).
+	// Set a position to depth l, as well as all ADF of it, slice-metric only.
+	// (mirrors PrunTable::setAll)
 	inline int setAll(int rawI0, int locI0, int i1, int i2, char l){
 		int n=0;
 		int rawJ0=rawI0, j1=i1, j2=i2;
@@ -1686,38 +1650,12 @@ public:
 	}
 };
 
-// ---------------------------------------------------------------------
-// Dynamic single-axis (corner-only or edge-only) cubeshape-restricted
-// pruning tables for partial-position solving.
-//
-// The fixed c1/c2/e1/e2 colouring classes (clp[1]/clp[2] in
-// getCornerColouring/getEdgeColouring) only resolve to a usable index
-// when all 4 of THAT SPECIFIC class's pieces happen to be concretely
-// known. Many partial inputs don't line up with either fixed class, so
-// c1/c2/e1/e2 sit at -1 and prunedOut() gets no benefit from pr2/cpr2 at
-// all.
-//
-// ShapeColPos/ShpColTranTable (sctc/scte) never look at *which* pieces
-// are marked, only at *which of the 8 corner (or edge) slots* are
-// marked -- so the existing transition tables already support ANY choice
-// of 4 marked corners or 4 marked edges "for free". All that's missing is
-// (a) computing the colour index for an arbitrary marked set, and (b) a
-// small BFS flood fill seeded at that set's solved index -- both cheap,
-// since they reuse the same machinery as CubePrunTable, just tracking one
-// axis instead of two. These are therefore built fresh, in memory only,
-// per solve() call, from whichever pieces are actually concrete in the
-// input for *this* query -- never written to disk like the fixed tables.
-// ---------------------------------------------------------------------
-
-// Colour index (0..69, or -1) of an arbitrary 4-piece marked set on a
-// given position. Mirrors FullPosition::getCornerColouring/
-// getEdgeColouring but takes the marked piece ids explicitly instead of
-// a fixed clp[] class. The marked pieces are always concrete in `pos`
-// here: `marked` is only ever populated from ids that appear concretely
-// in the original partial input, and moves permute slots, never piece
-// identities, so this never has to fall back to a partial-wildcard case
-// the way getCornerColouring(0) does for U/V.
-static inline int markedColourIdx(const int pos[24], const int marked[4], bool isEdge, ChoiceTable& ct){
+/**
+ * color index (0..69, or -1) of any 4 pieces (of the same type).
+ * (generalized FullPosition::getCornerColoring/getEdgeColoring)
+ * Only concrete pieces will be chosen to be marked in pos[].
+ */
+static inline int markedColorIdx(const int pos[24], const int marked[4], bool isEdge, ChoiceTable& ct){
 	int c=0, cnt=0;
 	int m=1<<7;
 	for(int i=0; i<24; i++){
@@ -1727,19 +1665,21 @@ static inline int markedColourIdx(const int pos[24], const int marked[4], bool i
 				if(pos[i]==marked[j]){ c|=m; cnt++; break; }
 			}
 			m>>=1;
-			if(!isEdge) i++; // corners occupy two adjacent slots
+			if(!isEdge) i++;
 		}
 	}
 	return (cnt==4) ? ct.choice2Idx[c] : -1;
 }
 
-// Cubeshape-restricted (4-shape) pruning table for one arbitrary 4-piece
-// marked set, tracking only that one axis (corners OR edges, not both --
-// keeping corner and edge groups independent avoids having to also pick
-// a matching partner group of the other type, and each axis alone is
-// still a valid, if slightly looser, admissible lower bound). Built
-// in-memory only; not persisted to disk, since it's specific to which
-// pieces the current query happens to have concretely defined.
+/**
+ * Dynamic corner-only/edge-only CS-restricted pruning tables for partial solving.
+ *
+ * using ShapeColPos/ShpColTranTable (sctc/scte):
+ * (a) compute the color index for an arbitrary set of corners/edges (markedColorIdx)
+ * (b) a small BFS flood fill seeded at that set's solved index
+ *
+ * NOT stored to disk.
+ */
 class DynCubePrunTable1D {
 public:
 	char table[4][70];
@@ -1749,12 +1689,12 @@ public:
 	DynCubePrunTable1D(const int marked[4], bool isEdge, ShapeTranTable& stt, ShpColTranTable& sc, ChoiceTable& ct){
 		for(int i0=0;i0<4;i0++) for(int i1=0;i1<70;i1++) table[i0][i1]=0;
 
-		FullPosition q; // default-constructed FullPosition is the solved position
+		FullPosition q; // solved position
 		int s0raw = stt.getShape(q.getShape(), q.getParityOdd());
 		int s0 = cubeRaw2Local(s0raw);
-		if (s0 < 0) return; // solved position is always cubeshape; defensive only
-		int c0 = markedColourIdx(q.pos, marked, isEdge, ct);
-		if (c0 < 0) return; // marked[] must be a valid 4-of-8 concrete set
+		if (s0 < 0) return; // just so the universe doesn't play a trick on us
+		int c0 = markedColorIdx(q.pos, marked, isEdge, ct);
+		if (c0 < 0) return; // reject marked[] if it's not all concrete and valid
 
 		if (metric == TURN_METRIC || metric == ANGLE_METRIC) {
 			table[s0][c0] = 1;
@@ -1780,7 +1720,7 @@ public:
 									j1=sc.tranTable[rawJ0][j1][m];
 									rawJ0=stt.tranTable[rawJ0][m];
 									int locJ0 = cubeRaw2Local(rawJ0);
-									if( locJ0<0 ) break; // leaves cubeshape -- no legal orbit here
+									if( locJ0<0 ) break;
 									if( table[locJ0][j1]==0 ){
 										table[locJ0][j1]=l+1;
 										n++;
@@ -1845,7 +1785,7 @@ public:
 	}
 
 private:
-	// mirrors CubePrunTable::setAll, single-axis. Slice-metric only.
+	// CubePrunTable::setAll but single-axis. Slice-metric only.
 	int setAll(int rawI0, int /*locI0*/, int i1, char l, ShapeTranTable& stt, ShpColTranTable& sc){
 		int n=0;
 		int rawJ0=rawI0, j1=i1;
@@ -1867,18 +1807,18 @@ private:
 	}
 };
 
-// LRU cache of built DynCubePrunTable1D tables, shared across every partial-
-// candidate solve in a batch session.  A table depends only on its marked
-// 4-piece set (+ whether it is corners or edges) and the fixed per-session
-// metric/tables, so identical combos across many candidates reuse one build
-// instead of re-running the BFS for every solve.
+/**
+ * LRU cache of built DynCubePrunTable1D tables, for reuse.
+ *
+ * Tables can be identified by:
+ * 1. its marked 4-piece set
+ * 2. corners or edges
+ * (3. metric, but this is a session constant, set once by batchParseFlags)
+ */
 class DynTableCache {
 public:
-	// Key uniquely identifies a table: the 4 marked pieces (sorted) + type.
-	// Metric is a session constant (set once by batchParseFlags), so it needn't
-	// be part of the key.
 	struct Key {
-		uint64_t a, b;   // packed piece ids (0..15) into two halves of a bitmask
+		uint64_t a, b;   // packed piece ids (0-15) into two halves of a bitmask
 		bool isEdge;
 		bool operator==(const Key& o) const { return a==o.a && b==o.b && isEdge==o.isEdge; }
 		Key(const std::array<int,4>& m, bool edge): a(0), b(0), isEdge(edge){
@@ -1895,16 +1835,17 @@ public:
 
 	explicit DynTableCache(size_t capacity) : _cap(capacity>0?capacity:32) {}
 
-	// Returns a pointer to the built table for `marked`/`isEdge`, building and
-	// caching it on first use.  stt/sc/ct are only needed on a miss.  The
-	// returned pointer stays valid until the next insertion may evict it, so
-	// callers must consume it immediately (see buildDynamicTables).
+	/**
+	 * Given `marked`/`isEdge`, returns a pointer to a built table (build if nonexistent).
+	 * Callers must consume the returned pointer immediately since it's not valid forever.
+	 * 		(see buildDynamicTables).
+	 */
 	const DynCubePrunTable1D* get(const std::array<int,4>& marked, bool isEdge,
 	                              ShapeTranTable& stt, ShpColTranTable& sc, ChoiceTable& ct){
 		Key key(marked, isEdge);
 		auto it = _map.find(key);
 		if (it != _map.end()){
-			// move to most-recently-used
+			// hit. move to most-recently-used
 			_ring.erase(_ring.find(it->second));
 			int slot = it->second;
 			_ring[slot] = _clock++;
@@ -1929,7 +1870,7 @@ public:
 		return &_vec[slot];
 	}
 
-	void clear(){ _vec.clear(); _map.clear(); _ring.clear(); _clock=0; _cap=_cap; }
+	void clear(){ _vec.clear(); _map.clear(); _ring.clear(); _clock=0; }
 
 private:
 	size_t _cap;
@@ -1939,10 +1880,7 @@ private:
 	std::map<int,uint64_t> _ring; // slot -> last used clock
 };
 
-// Enumerate every 4-element combination of `items` (capped at MAX_COMBOS
-// to bound build time when a great many pieces of one type are known --
-// C(8,4)=70 is the theoretical ceiling anyway, so this is a generous cap
-// rather than one expected to bite in practice).
+// Enumerate every 4-element combination of `items`, capped at C(8,4)=70.
 static inline std::vector<std::array<int,4>> chooseFour(const std::vector<int>& items){
 	std::vector<std::array<int,4>> out;
 	const size_t MAX_COMBOS = 70;
@@ -1955,7 +1893,7 @@ static inline std::vector<std::array<int,4>> chooseFour(const std::vector<int>& 
 	return out;
 }
 
-//pruning table for combination of shape,edgecolouring,cornercolouring.
+// pruning table for combination of shape, edgeColoring, cornerColoring.
 class PrunTable {
 public:
 	char (*table)[70][70];
@@ -1987,10 +1925,10 @@ public:
 			for( int i2=0; i2<70; i2++){
 				table[i0][i1][i2]=0;
 			}}}
-			//set start position
+			// set start position
 			int s0 = stt.getShape(p0.getShape(),p0.getParityOdd());
-			int e0 = p0.getEdgeColouring(cl);
-			int c0 = p0.getCornerColouring(cl);
+			int e0 = p0.getEdgeColoring(cl);
+			int c0 = p0.getCornerColoring(cl);
 			e0 = scte0.ct.choice2Idx[e0];
 			c0 = sctc0.ct.choice2Idx[c0];
 			if (metric == TURN_METRIC || metric == ANGLE_METRIC){
@@ -2122,16 +2060,16 @@ public:
 	}
 };
 
-// Encoded "useless" segment sequences: identity move sequences
-// branch killed if matched.
-// Values are packed using base 12. e.g. 1,2 → 1*12+2
-// IMPORTANT: printsol() prints top-layer numbers as the raw
-// value directly, but bottom-layer numbers as the NEGATION of the raw value
-// (md accumulates via subtraction, mu via addition). So converting a printed
-// pair back to raw is asymmetric: top = praw(printed), bottom =
-// (12 - praw(printed)) % 12, where praw undoes the printed negative-notation
-// (praw(v) = v<0 ? v+12 : v). Getting this wrong silently mismatches every
-// entry whose second number isn't 0 or 6 (those happen to be self-negating).
+/*
+ * "useless" segment sequences, i.e. identity move sequences
+ *
+ * moves are packed using base 12. e.g. (1,2) → 1*12+2
+ *
+ * IMPORTANT: D move raw values are the NEGATION of the printed value. (11 → 1, 2 → -2)
+ * 	So converting a move pair back to raw is asymmetric:
+ * 	top = praw(printed), bottom = (12 - praw(printed)) % 12,
+ * 	where praw maps moves like -1 to 11 (praw(v) = v<0 ? v+12 : v).
+ */
 template <size_t NWords, size_t NKeys>
 static constexpr std::array<uint64_t, NWords> makeKeyBits(const std::array<uint32_t, NKeys>& keys) {
 	std::array<uint64_t, NWords> bits{};
@@ -2207,23 +2145,20 @@ static inline bool isUselessSegTriple(int c, int d, int e, int f, int g, int h) 
 	return keyBitSet(g_uselessSegTripleBits, key);
 }
 
-// PositionSolver holds position encoded by colourings
+// solver for fully concrete positions
 class PositionSolver {
 	public:
 	int e0,e1,e2,c0,c1,c2;
+	// shp2 is the E-mirror of shp
 	int shp,shp2,middle;
-	// Secondary parity track: for PartialPositionSolver this is the parity-twin
-	// shape; for full positions it mirrors shp/shp2 so the slice guard below
-	// reduces to the primary track.
+	// for PositionSolver shpx and shpx2 mirror shp/shp2
 	int shpx, shpx2;
 	FullPosition fp;
 	ShapeTranTable& stt;
 	ShpColTranTable& scte;
 	ShpColTranTable& sctc;
-	// General tables (non-cubeshape solves) and dedicated cubeshape-restricted
-	// tables (-c solves) are mutually exclusive at runtime: exactly one pair
-	// is actually built by main(), the other stays null and unused. Pointers
-	// (not references) so main() can skip building the unused 36MB pair.
+	// PrunTables and CubePrunTables are mutually exclusive (the unused one is null).
+	// Pointers (not references) so main() can skip building the unused pair.
 	PrunTable* pr1;
 	PrunTable* pr2;
 	CubePrunTable* cpr1;
@@ -2234,27 +2169,22 @@ class PositionSolver {
 	int lastTurns[6];
 	bool findAll;
 	bool ignoreTrans;
-	// doTop() amount applied as preAUF (pre-adjust U layer) before this solve
-	// iteration; 0 = none. Folded into mu by printsol(), same as m_preadfBot/md.
-	int m_preauf{0};
-	// doBot() amount applied as preadf (pre-adjust D layer) before this solve
-	// iteration; 0 = none.  printsol() folds this into the first (for solve) or
-	// last (for generate) (mu,md) term.  The postabf is NOT pre-applied — the
-	// solver finds it as a real move (enforced by the slice-point check), so the
-	// whole solution including pre/post-abf comes from the search.
-	int m_preadfBot{0};
+	// doTop() amount applied as preAUF
+	int m_preAUF{0};
+	// doBot() amount applied as preADF
+	int m_preADF{0};
 
 	/*
-	* U2/D2 handling:
-	* - allowed in preabf and postabf
-	* - only allowed for a depth if no solutions without U2/D2 can be found (a "clean" solution)
-	* - before a clean solution, all dirty solutions are stored, and the buffer is cleared
-	*   upon the first clean
+	 * U2/D2 handling:
+	 * - allowed in preabf and postabf
+	 * - only allowed for a depth if no solutions without U2/D2 can be found (a "clean" solution)
+	 * - before a clean solution, all dirty solutions are stored, and the buffer is cleared
+	 *   upon the first clean
 
-	* m_slicesDone   – slices performed so far on the current search path
-	* m_internalBad  – how many U2/D2 internal moves exist in this path?
-	* m_cleanFound   – a clean solution exists at the current depth.
-	* m_dirtyBuf     – dirty solutions held back at the current depth
+	 * m_slicesDone   – slices performed so far on the current search path
+	 * m_internalBad  – how many U2/D2 internal moves exist in this path?
+	 * m_cleanFound   – a clean solution exists at the current depth.
+	 * m_dirtyBuf     – dirty solutions held back at the current depth
 	*/
 	int m_slicesDone{0};
 	int m_internalBad{0};
@@ -2264,14 +2194,11 @@ class PositionSolver {
 	bool m_cubeshape{false};
 	clock_t m_lastProgressClock{0};
 
-	// Precomputed per-shape answer to "does a slice from this shape keep the
-	// primary parity track in cubeshape?" (= checkKeepCubeShape applied to the
-	// post-slice state of one track).  One byte read per slice attempt instead of
-	// two transition-table lookups.
+	// precomputed mapping from CS index to if a slice from there stays in CS
 	std::vector<char> m_sliceStaysCubePrimary;
 
-	// Emit the held-back dirty solutions for a depth that produced no clean
-	// solution (internal U2/D2 was necessary).  Honors single-solution mode.
+	// Emit the held-back solutions with U2/D2 for a depth that produced no clean solution.
+	// Honors single-solution mode.
 	// Returns whether at least one solution was emitted.
 	bool emitDirtyBuffer() {
 		bool emitted = false;
@@ -2289,33 +2216,27 @@ class PositionSolver {
 	{
 		m_sliceStaysCubePrimary.resize(NUMSHAPES);
 		for (int s = 0; s < NUMSHAPES; s++) {
-			// The cube-shape set is closed under mirroring, so the mirror track
-			// (tranTable[.][3]) is a cube shape iff the slice target is.
 			m_sliceStaysCubePrimary[s] = isCubeShape(stt.tranTable[s][2]) ? 1 : 0;
 		}
 	}
+	// "is it good squares right now?"
 	virtual bool checkKeepCubeShape() {
-		// shp2 is the mirror of shp and the cube-shape set is mirror-closed, so
-		// only the primary track needs testing.
-		return isCubeShape(shp);
+		return isCubeShape(shp); // shp2's CS is the mirror of shp
 	}
-	// Pre-slice equivalent of checkKeepCubeShape on the post-slice state.  Used in
-	// -c mode to avoid generating a slice that would be immediately rejected.
-	// For a full position shpx==shp so only the primary track is consulted; the
-	// partial solver's parity-twin track (shpx) is folded in an override.
+	// "would it be in CS after a slice?"
 	virtual inline bool sliceStaysCubeShape() {
 		return m_sliceStaysCubePrimary[shp] != 0;
 	}
 	void set(FullPosition& p, bool findAll0, bool ignoreTrans0){
-		int cc0 = p.getCornerColouring(0);
-		int cc1 = p.getCornerColouring(1);
-		int cc2 = p.getCornerColouring(2);
+		int cc0 = p.getCornerColoring(0);
+		int cc1 = p.getCornerColoring(1);
+		int cc2 = p.getCornerColoring(2);
 		c0 = (cc0==-1 ? -1 : sctc.ct.choice2Idx[cc0]);
 		c1 = (cc1==-1 ? -1 : sctc.ct.choice2Idx[cc1]);
 		c2 = (cc2==-1 ? -1 : sctc.ct.choice2Idx[cc2]);
-		int ec0 = p.getEdgeColouring(0);
-		int ec1 = p.getEdgeColouring(1);
-		int ec2 = p.getEdgeColouring(2);
+		int ec0 = p.getEdgeColoring(0);
+		int ec1 = p.getEdgeColoring(1);
+		int ec2 = p.getEdgeColoring(2);
 		e0 = (ec0==-1 ? -1 : scte.ct.choice2Idx[ec0]);
 		e1 = (ec1==-1 ? -1 : scte.ct.choice2Idx[ec1]);
 		e2 = (ec2==-1 ? -1 : scte.ct.choice2Idx[ec2]);
@@ -2352,8 +2273,7 @@ class PositionSolver {
 	virtual int solve(int twoGen, int extraMoves, bool keepCubeShape){
 		m_cubeshape = keepCubeShape;
 		m_solutionFound = false;
-		// (preAUF,preADF) pairs, 2-gen-filtered and symmetry-deduped; see
-		// symmetricPreABF(). Empty => nothing sliceable, or not 2-genable.
+		// (preAUF,preADF) pairs, 2-gen-filtered and symmetry-deduped
 		auto preABFs = symmetricPreABF(fp.pos, twoGen, specificAngleBot, specificAngleTop);
 		if (preABFs.empty()) return 19;
 
@@ -2368,10 +2288,8 @@ class PositionSolver {
 
 		FullPosition fpOrig = fp;
 
-		// Snapshot the start state for each preABF candidate (doTop(auf) then
-		// doBot(adf) on the original position). Both layers are now fixed before
-		// search, so the root call uses lm=1 (skip top/bottom, go to first slice).
-		struct PreABFState { FullPosition fp; int e0,e1,e2,c0,c1,c2,shp,shp2,middle,preauf,preadf; };
+		// do each of the preABF and then fix both layers
+		struct PreABFState { FullPosition fp; int e0,e1,e2,c0,c1,c2,shp,shp2,middle,preAUF,preADF; };
 		std::vector<PreABFState> states;
 		for (const auto& kv : preABFs) {
 			fp = fpOrig;
@@ -2386,7 +2304,7 @@ class PositionSolver {
 			fp=st.fp;
 			e0=st.e0; e1=st.e1; e2=st.e2; c0=st.c0; c1=st.c1; c2=st.c2;
 			shp=st.shp; shp2=st.shp2; middle=st.middle;
-			m_preauf=st.preauf; m_preadfBot=st.preadf;
+			m_preAUF=st.preAUF; m_preADF=st.preADF;
 			moveLen=0; for(int i=0;i<6;i++) lastTurns[i]=0;
 			m_slicesDone=0; m_internalBad=0;
 		};
@@ -2409,9 +2327,9 @@ class PositionSolver {
 					restore(st);
 					int searchResult = search(depth, 1, &nodes, twoGen, keepCubeShape, specificAngleTop, specificAngleBot);
 					if (searchResult < 0) return searchResult;
-					if (searchResult != 0 && !findAll && (metric != SLICE_METRIC || m_cleanFound)) { fp = fpOrig; m_preauf = 0; m_preadfBot = 0; return 0; }
+					if (searchResult != 0 && !findAll && (metric != SLICE_METRIC || m_cleanFound)) { fp = fpOrig; m_preAUF = 0; m_preADF = 0; return 0; }
 				}
-				if (metric == SLICE_METRIC && !m_cleanFound && emitDirtyBuffer() && !findAll) { fp = fpOrig; m_preauf = 0; m_preadfBot = 0; return 0; }
+				if (metric == SLICE_METRIC && !m_cleanFound && emitDirtyBuffer() && !findAll) { fp = fpOrig; m_preAUF = 0; m_preADF = 0; return 0; }
 			}
 		} else {
 			int l=-1;
@@ -2429,11 +2347,11 @@ class PositionSolver {
 					if (searchResult < 0) return searchResult;
 					if (searchResult != 0) {
 						anySol = true;
-						if (!findAll && (metric != SLICE_METRIC || m_cleanFound)) { fp = fpOrig; m_preauf = 0; m_preadfBot = 0; return 0; }
+						if (!findAll && (metric != SLICE_METRIC || m_cleanFound)) { fp = fpOrig; m_preAUF = 0; m_preADF = 0; return 0; }
 					}
 				}
 				if (metric == SLICE_METRIC && !m_cleanFound) {
-					if (emitDirtyBuffer() && !findAll) { fp = fpOrig; m_preauf = 0; m_preadfBot = 0; return 0; }
+					if (emitDirtyBuffer() && !findAll) { fp = fpOrig; m_preAUF = 0; m_preADF = 0; return 0; }
 				}
 				if (anySol && optimalMoves == -1) optimalMoves = l;
 				if (optimalMoves != -1 &&
@@ -2443,8 +2361,8 @@ class PositionSolver {
 		}
 
 		fp = fpOrig;
-		m_preauf = 0;
-		m_preadfBot = 0;
+		m_preAUF = 0;
+		m_preADF = 0;
 		return 0;
 	}
 	virtual inline bool isSolved() {
@@ -2454,10 +2372,7 @@ class PositionSolver {
 	// determine if we should prune this branch of the tree
 	virtual inline bool prunedOut(int l) {
 		if( m_cubeshape ){
-			// -c mode: dedicated cubeshape-restricted tables only. shp/shp2
-			// are guaranteed cubeshape-legal here (search only transitions
-			// within the 4-shape set when keepCubeShape is on), so loc/loc2
-			// should always resolve; the >=0 checks are just a safety net.
+			// loc1/2 >= 0 is just a sanity check. they should be in CS.
 			int loc  = cubeRaw2Local(shp);
 			int loc2 = cubeRaw2Local(shp2);
 			if( loc>=0  && cpr1->table[loc ][e0][c0]>l+1 ) return true;
@@ -2485,9 +2400,8 @@ class PositionSolver {
 		}
 		if( l<0 ) return 0;
 
-		//prune based on transformation
+		// prune turn metric based on transformation
 		// (a,b)/(c,d)/(e,f) -> (6+a,6+b)/(d,c)/(6+e,6+f)
-		// qq note: this step is only done for turn metric, because the pruning steps below are ignored
 		if( metric == TURN_METRIC && !ignoreTrans && twoGen == 0){
 			// (a,b)/(c,d)/(e,f) -> (6+a,6+b)/(d,c)/(6+e,6+f)
 			// moves changes by:
@@ -2508,9 +2422,6 @@ class PositionSolver {
 
 		// check if it is now solved
 		if( l==0 ){
-			// The final segment is the postabf (after the last slice), so any U2/D2
-			// here is unrestricted — no ban.  printsol() tags the solution dirty iff
-			// m_internalBad>0; the per-depth flush decides whether to keep it.
 			if(isSolved()){
 				printsol();
 				if(verbosity>=6) std::cout<<"Nodes="<<*nodes<<std::endl<<std::flush;
@@ -2541,26 +2452,21 @@ class PositionSolver {
 			lastTurns[4]=0;
 		}
 		// try all bot layer moves
-		// 2-gen / pseudo-2-gen no longer block D moves here: the solver may make any
-		// D move, and the D-layer restriction is enforced at slice points instead
-		// (so preadf/postabf D moves can be discovered as real moves by the search).
+		// 2g/p2g D move restrictions are enforced at slices instead, so preADF/postADF work.
 		if( lm!=1 ){
 			i=doMove(1);
 			do{
 				// MOVE EQUIVALENCE PRUNE
-				// if we're allowed to use the transformation, and we're not doing any kind of
-				// 2gen, and we're not in the last two moves, then we should skip this move if the
-				// current (x,y) is worse than the alternative.
-				// the logic for that is: |x| + |y| >= 7, or |x| + |y| = 6 and |y| > |x|
+				// can use transformation, no 2gen, and not in the last two moves,
+				// then we should skip this move if the current (u,d) is worse than the y2.
+				// meaning: |u| + |d| >= 7, or |u| + |d| = 6 and |d| > |u|
 				int topMove = lastTurns[4];
 				int absTopMove = topMove>6 ? 12-topMove : topMove;
 				int absBottomMove = i>6 ? 12-i : i;
 				// use the following to respect generator's solution inversion
 				bool nearExemptBoundary = generator ? (m_slicesDone < 2) : (l < 2) || (m_slicesDone == 0);
 				// explicitly keep both branches for T° and E*.
-				// topMove maps directly to its printed value, but i (bottom) needs
-				// the asymmetric bottom conversion:
-				// raw = (12 - praw(printed)) % 12, praw(v) = v<0 ? v+12 : v.
+				// bottom conversion: raw = (12 - praw(printed)) % 12, praw(v) = v<0 ? v+12 : v.
 				bool isTMove = (topMove==2 && i==4) || (topMove==10 && i==8)
 					|| (topMove==3 && i==3) || (topMove==9 && i==9);
 				if ((absBottomMove <= maxY) && (absBottomMove + absTopMove <= maxTotal) && (metric==TURN_METRIC || ignoreTrans || twoGen!=0 || nearExemptBoundary || isTMove || (absTopMove + absBottomMove < 6) || (absTopMove + absBottomMove == 6 && absTopMove >= absBottomMove))  && (!keepAngleBot || absBottomMove < 2)) {
@@ -2577,31 +2483,24 @@ class PositionSolver {
 		}
 		// try slice move
 		if( lm!=2 && l>0){
-			// The segment this slice closes is (lastTurns[4],lastTurns[5]).
-			// A U2/D2 segment is "internal" only if m_slicesDone>=1.
-			// Internal U2/D2 is tagged (m_internalBad) so a finished solution can be
-			// classified dirty/clean; it is pruned here only once m_cleanFound is on.
+			// This slice closes (lastTurns[4],lastTurns[5]).
+			// block if the U2/D2 is internal, and we've found a clean solution
 			bool badSeg = (lastTurns[4]==6 && lastTurns[5]==0) || (lastTurns[4]==0 && lastTurns[5]==6);
 			bool internalBadSeg = (metric == SLICE_METRIC) && badSeg && (m_slicesDone >= 1);
 			bool block60 = internalBadSeg && m_cleanFound;
-			// 2-gen / pseudo-2-gen D-layer restriction.  A slice marks the end of a
-			// between-slice region: the D move just performed (lastTurns[5]) must obey
-			// the mode's rule (2-gen: no D; pseudo-2-gen: only D±1).  A disallowed D is
-			// only legal as the postabf, i.e. AFTER the last slice — but then no slice
-			// follows it, so it never reaches this check.  The preadf is already folded
-			// into the start position, so the D before the first slice must be 0 too;
-			// hence there is no first-slice exemption.  isSolved() is exempt so a final
-			// (already-solved) state isn't spuriously killed.
-			bool twoGenBlock = false;
+			// 2g/p2g D restrictions.
+			// The start position is already the state after preADF, so the first D is 0.
+			// isSolved() is exempt to not kill a solved state.
+			bool blockTwoGen = false;
 			if (twoGen != 0) {
 				int d = lastTurns[5];
 				int absD = (d > 6) ? 12 - d : d;
 				bool disallowedD = (twoGen == 2) ? (d != 0) : (absD > 1);
-				twoGenBlock = disallowedD && !isSolved();
+				blockTwoGen = disallowedD && !isSolved();
 			}
-			// make sure that the useless pair/triple has a leading slash (i.e. is not preabf)
+			// make sure the useless pair/triple has a leading slice (i.e. is not preABF)
 			bool uselessSeg = false;
-			if (!block60 && !twoGenBlock) {
+			if (!block60 && !blockTwoGen) {
 				uselessSeg = (m_slicesDone >= 2) &&
 					isUselessSegPair(lastTurns[2], lastTurns[3], lastTurns[4], lastTurns[5]);
 				if (!uselessSeg) {
@@ -2609,10 +2508,8 @@ class PositionSolver {
 						isUselessSegTriple(lastTurns[0], lastTurns[1], lastTurns[2], lastTurns[3], lastTurns[4], lastTurns[5]);
 				}
 			}
-			if (!block60 && !twoGenBlock && !uselessSeg && (!keepCubeShape || sliceStaysCubeShape())) {
-				// In -c mode sliceStaysCubeShape() has already verified that the slice
-				// keeps us in cubeshape (both parity tracks), so the state produced by
-				// doMove(2) below needs no further cubeshape check.
+			if (!block60 && !blockTwoGen && !uselessSeg && (!keepCubeShape || sliceStaysCubeShape())) {
+				// -c check is done by sliceStaysCubeShape() already
 				int lt0=lastTurns[0], lt1=lastTurns[1];
 				lastTurns[0]=lastTurns[2];
 				lastTurns[1]=lastTurns[3];
@@ -2621,8 +2518,6 @@ class PositionSolver {
 				lastTurns[4]=0;
 				lastTurns[5]=0;
 				doMove(2);
-				// This slice closes the current segment: a slice now precedes it, so
-				// if it was a (6,0)/(0,6) and one already came before, it is internal.
 				m_slicesDone++;
 				if (internalBadSeg) m_internalBad++;
 				moveList[moveLen++]=0;
@@ -2645,7 +2540,7 @@ class PositionSolver {
 		return r;
 	}
 
-	int normaliseMove(int m){
+	int normalizeMove(int m){
 		while(m<0) m+=12;
 		while(m>=12) m-=12;
 		if( usenegative && m>6 ) m-=12;
@@ -2662,11 +2557,11 @@ class PositionSolver {
 		}
 		return out;
 	}
-	// Abid's notation is normal WCA with every interior slash replaced by a
-	// space; a leading or trailing slash (first/last non-whitespace char) and
-	// the ergonomic rater's slice-start marker are preserved verbatim. The
-	// marker is only present when `hasIndicator` is true (it is injected in
-	// place of the first separator before this is called).
+	/*
+	 * Abid's notation is WCA with slash → space, except for leading or trailing slice or a slice start.
+	 *
+	 * hasIndicator = has a slice start
+	 */
 	static std::string abidSpacing(const std::string& alg, bool hasIndicator = false){
 		size_t markerAt = hasIndicator ? alg.find_first_of("/\\|") : std::string::npos;
 		size_t firstIdx = alg.find_first_not_of(" \t");
@@ -2685,8 +2580,7 @@ class PositionSolver {
 		}
 		return out;
 	}
-	// Replaces the first separator (slash, backslash, pipe or space) of an
-	// algorithm with the slice-start marker the ergonomic rater produced.
+	// inject slice start
 	static std::string injectSliceIndicator(const std::string& alg, const std::string& indicator){
 		if( indicator.empty() ) return alg;
 		size_t sep = alg.find_first_of("/\\| ");
@@ -2708,24 +2602,24 @@ class PositionSolver {
 					out += "/";
 					tu++; tw++; angle++;
 				}else if( moveList[i]<12 ){
-					mu = normaliseMove(mu-moveList[i]);
+					mu = normalizeMove(mu-moveList[i]);
 					tu++;
 					angle += (mu<0?-mu:mu);
 				}else{
-					md = normaliseMove(md+moveList[i]);
+					md = normalizeMove(md+moveList[i]);
 					tu++;
 					angle += (md<0?-md:md);
 				}
 			}
-			// Generator: preABF become the END, so their inverses fold into mu/md.
-			if (m_preauf != 0)
-				mu = normaliseMove(mu - m_preauf);
-			if (m_preadfBot != 0)
-				md = normaliseMove(md - m_preadfBot);
+			// Generator: preABF is at the end, negated.
+			if (m_preAUF != 0)
+				mu = normalizeMove(mu - m_preAUF);
+			if (m_preADF != 0)
+				md = normalizeMove(md - m_preADF);
 		}else{
-			// Solver: preABF happen first.
-			mu = normaliseMove(m_preauf);
-			md = normaliseMove(m_preadfBot);
+			// Solver: preABF happens first.
+			mu = normalizeMove(m_preAUF);
+			md = normalizeMove(m_preADF);
 			for( int i=0; i<moveLen; i++){
 				if( moveList[i]==0 ) {
 					out += printmove(mu, md);
@@ -2733,17 +2627,15 @@ class PositionSolver {
 					out += "/";
 					tu++; tw++; angle++;
 				}else if( moveList[i]<12 ){
-					mu = normaliseMove(mu+moveList[i]);
+					mu = normalizeMove(mu+moveList[i]);
 					tu++;
 					angle += (mu<0?-mu:mu);
 				}else{
-					md = normaliseMove(md-moveList[i]);
+					md = normalizeMove(md-moveList[i]);
 					tu++;
 					angle += (md<0?-md:md);
 				}
 			}
-			// postabf is a real move in moveList (found by the search), so nothing
-			// extra to fold in here.
 		}
 		out += printmove(mu, md);
 		// Save raw algorithm before karnotation transform (for the bridge)
@@ -2760,8 +2652,7 @@ class PositionSolver {
 		line += "]";
 		if (g_extendedOutput) {
 			line += "  " + karnConverted;
-			// The ergonomic rater runs once per cubeshape solution; its
-			// slice-start marker doubles as the first separator of the abid text.
+			// ergo rating
 			std::string sliceMarker;
 			if (m_cubeshape) {
 				bool initialTopA = (fp.pos[0] >= 8);
@@ -2791,10 +2682,7 @@ class PositionSolver {
 					}
 				} catch (...) { }
 			}
-			// Abid notation (karnotation == 3) is produced HERE, solver-side, so
-			// each streamed line arrives already converted. The frontend must not
-			// re-implement a notation converter for live output — an extra IPC or
-			// JS pass over every solution is slower than solving the position.
+			// Abid notation (karnotation == 3) is produced solver-side, for speed.
 			if (karnotation == 3) {
 				std::string abidAlg = sliceMarker.empty()
 					? rawAlg
@@ -2816,22 +2704,18 @@ class PositionSolver {
 	}
 };
 
-// PartialositionSolver is like PositionSolver but may have some incompletely defined pieces
+// PartialPositionSolver is PositionSolver with partial pieces (partly defined)
 class PartialPositionSolver : public PositionSolver {
 public:
 	PartialPositionSolver( ShapeTranTable& stt0, ShpColTranTable& scte0, ShpColTranTable& sctc0, PrunTable* pr10, PrunTable* pr20, CubePrunTable* cpr10, CubePrunTable* cpr20 )
 	    : PositionSolver(stt0, scte0, sctc0, pr10, pr20, cpr10, cpr20) {}
 
-	// Optional shared cache for dynamic pruning tables (set by the batch
-	// solver so identical marked-sets across many candidates reuse one build).
+	// Optional shared cache for reusing dynamic pruning tables (set by the batch solver)
 	DynTableCache* dynCache = nullptr;
 
-	// Dynamic per-query pruning tables (see DynCubePrunTable1D). Built once
-	// per solve() call from whichever pieces are concretely known in the
-	// input -- when more than 4 pieces of one type are known, one table per
-	// 4-subset (capped) -- and tracked through doMove() exactly like c0/e0.
-	// Only consulted in -c (keepCubeShape) mode, matching where the fixed
-	// cpr1/cpr2 tables apply; see prunedOut().
+	// Dynamic per-query pruning tables for -c (DynCubePrunTable1D).
+	// When more than 4 of one piece type are known, one table per 4-subset (capped),
+	// and tracked through doMove() like c0/e0.
 	static const size_t MAX_DYN_COMBOS = 16;
 	std::vector<DynCubePrunTable1D> dynCornerTables;
 	std::vector<DynCubePrunTable1D> dynEdgeTables;
@@ -2875,22 +2759,18 @@ public:
 		dynCornerIdx.assign(dynCornerTables.size(), -1);
 		dynEdgeIdx.assign(dynEdgeTables.size(), -1);
 	}
-	// Recompute each dynamic table's live colour index from a (possibly
-	// preadf-rotated) position. Cheap -- O(combos * 24) -- safe to call any
-	// time set() runs, including before buildDynamicTables() has ever been
-	// called (loops over empty vectors).
+	// Recompute each dynamic table's color index from a (possibly preADF-rotated) position. Cheap.
 	void refreshDynIdx(const int pos[24]){
 		for(size_t i=0;i<dynCornerTables.size();i++)
-			dynCornerIdx[i] = markedColourIdx(pos, dynCornerMarked[i].data(), false, sctc.ct);
+			dynCornerIdx[i] = markedColorIdx(pos, dynCornerMarked[i].data(), false, sctc.ct);
 		for(size_t i=0;i<dynEdgeTables.size();i++)
-			dynEdgeIdx[i] = markedColourIdx(pos, dynEdgeMarked[i].data(), true, scte.ct);
+			dynEdgeIdx[i] = markedColorIdx(pos, dynEdgeMarked[i].data(), true, scte.ct);
 	}
 
+	// either parity, for both functions below.
 	bool checkKeepCubeShape() override {
 		return isCubeShape(shp) || isCubeShape(shpx);
 	}
-	// Fold both possible parity interpretations of the partial position into the
-	// pre-slice guard (the base version only consults the primary track shp).
 	inline bool sliceStaysCubeShape() override {
 		return (m_sliceStaysCubePrimary[shp] || m_sliceStaysCubePrimary[shpx]) != 0;
 	}
@@ -2918,8 +2798,7 @@ public:
 		if (c1>-1) c1 = sctc.tranTable[shp][c1][m];
 		if (e0>-1) e0 = scte.tranTable[shp][e0][m];
 		if (e1>-1) e1 = scte.tranTable[shp][e1][m];
-		// maintain dynamic single-axis colour indices (same transition tables,
-		// same primary-track shape, but only one of corner/edge axis each)
+		// maintain color indices for the dynamic single-axis pruning tables
 		for (size_t i=0; i<dynCornerIdx.size(); i++)
 			if (dynCornerIdx[i]>-1) dynCornerIdx[i] = sctc.tranTable[shp][dynCornerIdx[i]][m];
 		for (size_t i=0; i<dynEdgeIdx.size(); i++)
@@ -2936,9 +2815,7 @@ public:
 	int solve(int twoGen, int extraMoves, bool keepCubeShape) override {
 		m_cubeshape = keepCubeShape;
 		m_solutionFound = false;
-		// (preAUF,preADF) pairs, 2-gen-filtered and symmetry-deduped, partial-aware
-		// via twoGenPreadf's U/V/W/X/Y/Z handling. Empty => not 2-genable, or
-		// nothing sliceable.
+		// (preAUF,preADF) pairs, 2-gen-filtered and symmetry-deduped
 		auto preABFs = symmetricPreABF(fp.pos, twoGen, specificAngleBot, specificAngleTop);
 		if (preABFs.empty()) return 19;
 
@@ -2953,13 +2830,13 @@ public:
 
 		FullPosition fpOrig = fp;
 
-		// Dynamic pruning tables depend only on which pieces are known, not on
-		// the preABF rotation, so build them once here.
+		// ok to pass in pre-preABF position to pruning tables
 		if (keepCubeShape) buildDynamicTables(fpOrig.pos);
 
+		// do each of the preABF and then fix both layers
 		struct PreABFState {
 			FullPosition fp;
-			int e0,e1,e2,c0,c1,c2,shp,shp2,shpx,shpx2,middle,preauf,preadf;
+			int e0,e1,e2,c0,c1,c2,shp,shp2,shpx,shpx2,middle,preAUF,preADF;
 			std::vector<int> dynCornerIdx;
 			std::vector<int> dynEdgeIdx;
 		};
@@ -2977,7 +2854,7 @@ public:
 			fp=st.fp;
 			e0=st.e0; e1=st.e1; e2=st.e2; c0=st.c0; c1=st.c1; c2=st.c2;
 			shp=st.shp; shp2=st.shp2; shpx=st.shpx; shpx2=st.shpx2;
-			middle=st.middle; m_preauf=st.preauf; m_preadfBot=st.preadf;
+			middle=st.middle; m_preAUF=st.preAUF; m_preADF=st.preADF;
 			dynCornerIdx=st.dynCornerIdx; dynEdgeIdx=st.dynEdgeIdx;
 			moveLen=0; for(int i=0;i<6;i++) lastTurns[i]=0;
 			m_slicesDone=0; m_internalBad=0;
@@ -3000,9 +2877,9 @@ public:
 					restore(st);
 					int searchResult = search(depth, 1, &nodes, twoGen, keepCubeShape, specificAngleTop, specificAngleBot);
 					if (searchResult < 0) return searchResult;
-					if (searchResult != 0 && !findAll && (metric != SLICE_METRIC || m_cleanFound)) { fp = fpOrig; m_preauf = 0; m_preadfBot = 0; return 0; }
+					if (searchResult != 0 && !findAll && (metric != SLICE_METRIC || m_cleanFound)) { fp = fpOrig; m_preAUF = 0; m_preADF = 0; return 0; }
 				}
-				if (metric == SLICE_METRIC && !m_cleanFound && emitDirtyBuffer() && !findAll) { fp = fpOrig; m_preauf = 0; m_preadfBot = 0; return 0; }
+				if (metric == SLICE_METRIC && !m_cleanFound && emitDirtyBuffer() && !findAll) { fp = fpOrig; m_preAUF = 0; m_preADF = 0; return 0; }
 			}
 		} else {
 			int l=-1;
@@ -3020,11 +2897,11 @@ public:
 					if (searchResult < 0) return searchResult;
 					if (searchResult != 0) {
 						anySol = true;
-						if (!findAll && (metric != SLICE_METRIC || m_cleanFound)) { fp = fpOrig; m_preauf = 0; m_preadfBot = 0; return 0; }
+						if (!findAll && (metric != SLICE_METRIC || m_cleanFound)) { fp = fpOrig; m_preAUF = 0; m_preADF = 0; return 0; }
 					}
 				}
 				if (metric == SLICE_METRIC && !m_cleanFound) {
-					if (emitDirtyBuffer() && !findAll) { fp = fpOrig; m_preauf = 0; m_preadfBot = 0; return 0; }
+					if (emitDirtyBuffer() && !findAll) { fp = fpOrig; m_preAUF = 0; m_preADF = 0; return 0; }
 				}
 				if (anySol && optimalMoves == -1) optimalMoves = l;
 				if (optimalMoves != -1 &&
@@ -3034,14 +2911,14 @@ public:
 		}
 
 		fp = fpOrig;
-		m_preauf = 0;
-		m_preadfBot = 0;
+		m_preAUF = 0;
+		m_preADF = 0;
 		return 0;
 	}
 	inline bool isSolved() override {
 		if (middle < 0) return false;
 		if (!fp.matchesSolved()) return false;
-		// check duplicate constraint: at least one T/S value must be at each duplicated piece's solved position
+		// at least one of the duplicated pieces must be solved
 		for (size_t g=0; g<fp.duplicates.size(); g++) {
 			int val = fp.pos[fp.duplicates[g].solvedPosIdx];
 			bool found = false;
@@ -3059,20 +2936,12 @@ public:
 	// we should have a shape-only pruning table
 	inline bool prunedOut(int l) override {
 		if( m_cubeshape ){
-			// -c mode: dedicated cubeshape-restricted tables only. Unlike the
-			// full-position case, checkKeepCubeShape() here only requires
-			// EITHER shp or shpx to be cubeshape-legal, so one of loc/locx
-			// (or loc2/locx2) can legitimately be -1.
-			//
-			// Pruning logic when one track leaves cubeshape:
-			//   - Both loc>=0 and locx>=0: both parities are cubeshape-legal;
-			//     we don't know which is the actual parity, so prune only if
-			//     BOTH tracks say "too deep" (AND).
-			//   - Exactly one of loc/locx >= 0: the other parity is impossible
-			//     (it left cubeshape and can't return), so the remaining
-			//     cubeshape track IS the actual parity.  Prune if THAT track
-			//     alone says "too deep".
-			//   - Neither >= 0: can't happen (checkKeepCubeShape would reject).
+			/*
+			 * loc and locx:
+			 *  - both >=0: both in CS, so prune only if both failed pruning tables.
+			 *  - either >=0: the <0 track is bad. so prune if the >=0 track fail the tables.
+			 *  - both < 0: boooo (rejected by checkKeepCubeShape)
+			 */
 			int loc   = cubeRaw2Local(shp);
 			int locx  = cubeRaw2Local(shpx);
 			int loc2  = cubeRaw2Local(shp2);
@@ -3081,7 +2950,7 @@ public:
 				bool a = (loc>=0)  && cpr1->table[loc ][e0][c0]>l+1;
 				bool b = (locx>=0) && cpr1->table[locx][e0][c0]>l+1;
 				if( a && b ) return true;
-				// one track left cubeshape → the other IS the actual parity
+				// the case for either >=0:
 				if( a && locx<0 ) return true;
 				if( b && loc<0  ) return true;
 			}
@@ -3099,8 +2968,7 @@ public:
 				if( a && locx2<0 ) return true;
 				if( b && loc2<0  ) return true;
 			}
-			// Dynamic single-axis cubeshape tables: each covers an arbitrary
-			// 4-piece subset not necessarily present in cpr1/cpr2.
+			// the dynamic tables
 			for (size_t i=0; i<dynCornerTables.size(); i++) {
 				if (dynCornerIdx[i]<0) continue;
 				bool a = (loc>=0)  && dynCornerTables[i].table[loc ][dynCornerIdx[i]]>l+1;
@@ -3142,8 +3010,7 @@ static inline bool isSingleMisalign(const int pos[24]) {
 	return pos[0] >= 8 == pos[12] >= 8;
 }
 
-// Standalone cubeshape check: edges at positions i%3==r for some r, both layers.
-// Does not need ShapeTranTable — works directly on the raw position array.
+// standalone CS check: edges are at positions i s.t. i%3==r for some r. apply to both layers.
 static bool isInCubeshapeRaw(const int pos[24]) {
 	for (int base = 0; base < 24; base += 12) {
 		bool layerOk = false;
@@ -3159,9 +3026,8 @@ static bool isInCubeshapeRaw(const int pos[24]) {
 	return true;
 }
 
-// Pre-validate position against keepCubeShape + twoGen constraints.
-// Returns 0 if OK, error code (19) if unsolvable with these constraints.
-// Safe to call before pruning tables exist.
+// Pre-validate position against keepCubeShape + twoGen constraints. Pruning tables not needed.
+// Returns 0 if OK, error code 19 if not.
 static int preValidate(FullPosition& p, bool keepCubeShape, int twoGen) {
 	if (!keepCubeShape) return 0;
 	if (!isInCubeshapeRaw(p.pos)) return 19;
@@ -3241,13 +3107,12 @@ void help(){
 }
 
 
-// -w|u=slice/turn metric  -a=all  -m=ignore middle
 int sq1optMain(int argc, char* argv[]){
 	resetSolverOptions();
 	bool ignoreMid=false;
 	bool ignoreTrans=false;
 	bool findAll=false;
-	int twoGen = 0; // 0 = false, 1 = pseudo 2gen, 2 = true 2gen
+	int twoGen = 0; // 0 = false, 1 = pseudo 2gen, 2 = 2gen
 	int numpos = -1;
 	char *inpFile=NULL;
 	int posArg=-1;
@@ -3372,7 +3237,7 @@ int sq1optMain(int argc, char* argv[]){
 	FullPosition p;
 	std::ifstream is;
 	bool havePosition = false;
-	// Use directly injected position if available (bypasses string encoding/decoding)
+	// use directly injected position if available
 	if( s_hasInjectedPosition ){
 		p.set(s_injectedPos, s_injectedMiddle);
 		s_hasInjectedPosition = false;
@@ -3389,16 +3254,14 @@ int sq1optMain(int argc, char* argv[]){
 		return 0;
 	}
 
-	// now we have a position p to solve (if posArg>=0 or injected)
-
-	// Pre-validate: catch impossible constraints before expensive table init
+	// now we have a position p to solve, so reject impossible params before initing the tables
 	if (havePosition) {
 		int pre = preValidate(p, keepCubeShape, twoGen);
 		if (pre) return show(pre);
 	}
 
 	if(verbosity>=3) std::cout << "Initializing..."<<std::endl;
-	// calculate transition tables
+	// transition tables
 	ChoiceTable ct;
 	if(verbosity>=4) std::cout << "  5. Computing move table for CS"<<std::endl;
 	ShapeTranTable st;
@@ -3407,14 +3270,14 @@ int sq1optMain(int argc, char* argv[]){
 	if(verbosity>=4) std::cout << "  3. Computing move table for corners"<<std::endl;
 	ShpColTranTable sctc( st, ct, false );
 
-	//calculate pruning tables for two colourings
+	// pruning tables for two colorings
 	FullPosition q;
 	PrunTable* pr1 = nullptr;
 	PrunTable* pr2 = nullptr;
 	CubePrunTable* cpr1 = nullptr;
 	CubePrunTable* cpr2 = nullptr;
 	if (keepCubeShape) {
-		// -c mode: only the small dedicated cubeshape tables are needed.
+		// only the CubePrunTables are needed.
 		if(verbosity>=4) std::cout << "  2. Computing restricted cubeshape pruning table #1"<<std::endl;
 		cpr1 = new CubePrunTable(q, 0, st, scte, sctc);
 		if(verbosity>=4) std::cout << "  1. Computing restricted cubeshape pruning table #2"<<std::endl;
@@ -3462,29 +3325,29 @@ int sq1optMain(int argc, char* argv[]){
 		}
 		if( ignoreMid ) p.middle=0;
 
-		//show position
+		// show position
 		if(verbosity>=1){
 			std::cout<<"State: ";
 			p.print();
 			std::cout<<std::endl;
 		}
 
-		// Pre-validate per-position (file/random input) — skip expensive solve if impossible
+		// reject impossible params before initing the tables
 		if (posArg < 0) {
 			int pre = preValidate(p, keepCubeShape, twoGen);
 			if (pre) { show(pre); continue; }
 		}
 
 		if (p.isPartial()) {
-			// convert position to colour encoding
+			// convert position to color encoding
 			pps.set(p, findAll, ignoreTrans);
 
-			//solve position
+			// solve position
 			int r = pps.solve(twoGen, extraMoves, keepCubeShape);
 			if (r < 0) return 130;
 			if (r) show(r);
 		} else {
-			// convert position to colour encoding
+			// convert position to color encoding
 			ps.set(p, findAll, ignoreTrans);
 
 			//solve position
@@ -3500,10 +3363,10 @@ int sq1optMain(int argc, char* argv[]){
 	return(0);
 }
 
-// ===================== Batch Solver API =====================
-// Allows initializing the solver once and solving multiple positions
-// without rebuilding the pruning tables each time.
-
+/*
+ * ===================== Batch Solver API =====================
+ * Allows solving multiple positions with one pruning tables build
+ */
 namespace {
 struct BatchState {
 	ChoiceTable ct;
@@ -3517,8 +3380,7 @@ struct BatchState {
 	CubePrunTable* cpr2 = nullptr;
 	PositionSolver* ps = nullptr;
 	PartialPositionSolver* pps = nullptr;
-	// Session-wide LRU cache of dynamic partial pruning tables, reused across
-	// every partial-candidate solve and dropped when the batch ends.
+	// shared cache for reusing dynamic pruning tables
 	DynTableCache* dynCache = nullptr;
 	bool keepCubeShape = false;
 	bool ignoreMid = false;
@@ -3653,9 +3515,8 @@ extern "C" int sq1_batch_init(int argc, char* argv[], const char* table_director
 
 	g_batch->ps = new PositionSolver(g_batch->st, g_batch->scte, g_batch->sctc, g_batch->pr1, g_batch->pr2, g_batch->cpr1, g_batch->cpr2);
 	g_batch->pps = new PartialPositionSolver(g_batch->st, g_batch->scte, g_batch->sctc, g_batch->pr1, g_batch->pr2, g_batch->cpr1, g_batch->cpr2);
-	// Cache dynamic pruning tables only in -c mode where they're used.  The
-	// table bodies only depend on the (session-fixed) metric and reference
-	// tables, so entries stay valid for the whole batch.
+	// Cache dynamic pruning tables only in -c mode.
+	// Metric doesn't change throughout session, which makes pruning tables valid.
 	if (g_batch->keepCubeShape)
 		g_batch->dynCache = new DynTableCache(300);
 	g_batch->pps->dynCache = g_batch->dynCache;
@@ -3769,16 +3630,9 @@ int main(int argc, char* argv[])
 
 
 
-
-
 /*
-
-ttshp: 7356*3 ints.   done
-
-tt: 70*7356*3 chars for edges
-tt: 70*7356*3 chars for corners
-
-pt: 70*70*7356 chars colour 1,2
-pt: 70*70*7356 chars colour 3
-
+ * Precomputed tables (persisted to disk). Sizes:
+ * ttshp  shape transitions           7356 shapes x 4 ints  (3 moves + E-mirror)
+ * tt     color transitions           7356 x 70 x 3 chars   (one for edges, one for corners)
+ * pt     pruning distances           7356 x 70 x 70 chars  (primary + mirror colorings)
 */
