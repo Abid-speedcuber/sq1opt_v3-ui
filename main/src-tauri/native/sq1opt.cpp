@@ -607,10 +607,95 @@ std::vector<int> twoGenPreadf(const int pos[24], int twoGen, bool specificAngleB
 	return result;
 }
 
-// Whether the 8 corners can be solved using only pseudo-2-gen moves (top turns +
-// slices + D±1), i.e. the corner permutation is reachable in the 2-gen corner
-// group.  Reads the corners from pos[0..17] (top layer + bottom-right).  Used by
-// the solver's keep-cube-shape p2g guard and the UI's Solve-button enable check.
+static inline void colourShift24(int out[24], const int in[24], int aufAmt, int adfAmt) {
+	for (int i = 0; i < 24; i++) {
+		int v = in[i];
+		if      (v >= 0  && v <= 3)  out[i] = (v + aufAmt) & 3;
+		else if (v >= 8  && v <= 11) out[i] = 8  + ((v - 8  + aufAmt) & 3);
+		else if (v >= 4  && v <= 7)  out[i] = 4  + ((v - 4  + adfAmt) & 3);
+		else if (v >= 12 && v <= 15) out[i] = 12 + ((v - 12 + adfAmt) & 3);
+		else out[i] = v;
+	}
+}
+
+// smallest of the 16 colour-shifted variants for comparisons
+static std::array<int,24> canonicalColourForm(const int pos[24]) {
+	std::array<int,24> best{};
+	int shifted[24];
+	for (int t = 0; t < 4; t++) {
+		for (int b = 0; b < 4; b++) {
+			colourShift24(shifted, pos, t, b);
+			std::array<int,24> cand;
+			for (int i = 0; i < 24; i++) cand[i] = shifted[i];
+			if ((t == 0 && b == 0) || cand < best) best = cand;
+		}
+	}
+	return best;
+}
+
+// magnitude of preABF increases by absolute value
+static const std::vector<int>& preABFRotationOrder() {
+	static const std::vector<int> order = {0,-1,1,-2,2,-3,3,-4,4,-5,5,-6};
+	return order;
+}
+
+static inline void rotateSlots(int arr[24], int lo, int m) {
+	m %= 12; if (m < 0) m += 12;
+	while (m-- > 0) {
+		int c = arr[lo + 11];
+		for (int i = 11; i > 0; i--) arr[lo + i] = arr[lo + i - 1];
+		arr[lo] = c;
+	}
+}
+
+// Enumerates every preABF pair, applies the 2-gen preADF constraint,
+// and dedups by colour-shift. Sorted ascending by abf amount.
+std::vector<std::pair<int,int>> symmetricPreABF(const int origPos[24], int twoGen, bool specificAngleBot, bool specificAngleTop) {
+	std::vector<int> adfAllowed;
+	if (twoGen != 0) adfAllowed = twoGenPreadf(origPos, twoGen, specificAngleBot, false);
+
+	struct Cand { int auf, adf; };
+	std::vector<Cand> cands;
+	for (int auf : preABFRotationOrder()) {
+		if (specificAngleTop && auf != 0 && auf != 1 && auf != -1) continue;
+		for (int adf : preABFRotationOrder()) {
+			if (specificAngleBot && adf != 0 && adf != 1 && adf != -1) continue;
+			if (twoGen != 0) {
+				int adfNorm = ((adf % 12) + 12) % 12;
+				if (std::find(adfAllowed.begin(), adfAllowed.end(), adfNorm) == adfAllowed.end()) continue;
+			}
+			cands.push_back({auf, adf});
+		}
+	}
+	std::stable_sort(cands.begin(), cands.end(), [](const Cand& a, const Cand& b) {
+		auto absi = [](int x){ return x < 0 ? -x : x; };
+		return (absi(a.auf) + absi(a.adf)) < (absi(b.auf) + absi(b.adf));
+	});
+
+	std::map<int, std::vector<std::array<int,24>>> seenByShape;
+	std::vector<std::pair<int,int>> result;
+	for (const auto& c : cands) {
+		int work[24];
+		for (int i = 0; i < 24; i++) work[i] = origPos[i];
+		rotateSlots(work, 0, c.auf);
+		rotateSlots(work, 12, c.adf);
+		if (!(work[0]!=work[11] && work[5]!=work[6] && work[12]!=work[23] && work[17]!=work[18])) continue; // not sliceable
+		int shape = 0;
+		for (int i = 0; i < 24; i++) if (work[i] >= 8) shape |= (1 << (23 - i));
+		auto canon = canonicalColourForm(work);
+		auto& bucket = seenByShape[shape];
+		bool dup = false;
+		for (const auto& prev : bucket) if (prev == canon) { dup = true; break; }
+		if (dup) continue;
+		bucket.push_back(canon);
+		result.push_back({c.auf, c.adf});
+	}
+	return result;
+}
+
+// Whether the corner permutation is reachable with 2-gen.
+// Reads the corners from pos[0..17] (top layer + bottom-right).
+// Used by the solver's keep-cube-shape p2g guard and the UI's Solve-button enable check.
 // Single source of truth; declared in sq1opt-runner.h.
 bool has2GenCorners(const int pos[24]) {
 	// get corners
@@ -2149,6 +2234,9 @@ class PositionSolver {
 	int lastTurns[6];
 	bool findAll;
 	bool ignoreTrans;
+	// doTop() amount applied as preAUF (pre-adjust U layer) before this solve
+	// iteration; 0 = none. Folded into mu by printsol(), same as m_preadfBot/md.
+	int m_preauf{0};
 	// doBot() amount applied as preadf (pre-adjust D layer) before this solve
 	// iteration; 0 = none.  printsol() folds this into the first (for solve) or
 	// last (for generate) (mu,md) term.  The postabf is NOT pre-applied — the
@@ -2264,18 +2352,15 @@ class PositionSolver {
 	virtual int solve(int twoGen, int extraMoves, bool keepCubeShape){
 		m_cubeshape = keepCubeShape;
 		m_solutionFound = false;
-		// Find the valid preadf D rotations for 2-gen / pseudo-2-gen (solve guard:
-		// if no compatible block exists the position can't be 2-genned).
-		// For twoGen==0 this always returns {0}.
-		auto preadfs = fp.findPreadf(twoGen);
-		if ((twoGen == 1 || twoGen == 2) && preadfs.empty()) return 19;
+		// (preAUF,preADF) pairs, 2-gen-filtered and symmetry-deduped; see
+		// symmetricPreABF(). Empty => nothing sliceable, or not 2-genable.
+		auto preABFs = symmetricPreABF(fp.pos, twoGen, specificAngleBot, specificAngleTop);
+		if (preABFs.empty()) return 19;
 
 		if (keepCubeShape) {
-			// check that it's in cube shape and of the right parity
 			if (!checkKeepCubeShape()) {
 				return 19;
 			}
-			// check for corner 2 gen for every valid (p)2g preadf candidate
 			if ((twoGen == 1 || twoGen == 2) && !cornersAre2GenSolvable(fp.pos, twoGen, specificAngleBot)) {
 				return 19;
 			}
@@ -2283,25 +2368,25 @@ class PositionSolver {
 
 		FullPosition fpOrig = fp;
 
-		// Snapshot the encoded start state for each preadf candidate.  Each candidate
-		// is the original position pre-adjusted by doBot(k) (D layer only — the top
-		// layer is untouched, so the search still explores all U moves before the
-		// first slice).  The postabf is found by the search itself, so isSolved()
-		// targets canonical solved.  All candidates share the same middle (doBot
-		// doesn't change it), so the depth parity is common to all.
-		struct PreadfState { int e0,e1,e2,c0,c1,c2,shp,shp2,middle,preadf; };
-		std::vector<PreadfState> states;
-		for (int k : preadfs) {
+		// Snapshot the start state for each preABF candidate (doTop(auf) then
+		// doBot(adf) on the original position). Both layers are now fixed before
+		// search, so the root call uses lm=1 (skip top/bottom, go to first slice).
+		struct PreABFState { FullPosition fp; int e0,e1,e2,c0,c1,c2,shp,shp2,middle,preauf,preadf; };
+		std::vector<PreABFState> states;
+		for (const auto& kv : preABFs) {
 			fp = fpOrig;
-			if (k != 0) fp.doBot(k);
+			if (kv.first  != 0) fp.doTop(kv.first);
+			if (kv.second != 0) fp.doBot(kv.second);
 			set(fp, findAll, ignoreTrans);
-			states.push_back({e0,e1,e2,c0,c1,c2,shp,shp2,middle,k});
+			states.push_back({fp, e0,e1,e2,c0,c1,c2,shp,shp2,middle,kv.first,kv.second});
 		}
 		const int sharedMiddle = states[0].middle;
 
-		auto restore = [&](const PreadfState& st){
+		auto restore = [&](const PreABFState& st){
+			fp=st.fp;
 			e0=st.e0; e1=st.e1; e2=st.e2; c0=st.c0; c1=st.c1; c2=st.c2;
-			shp=st.shp; shp2=st.shp2; middle=st.middle; m_preadfBot=st.preadf;
+			shp=st.shp; shp2=st.shp2; middle=st.middle;
+			m_preauf=st.preauf; m_preadfBot=st.preadf;
 			moveLen=0; for(int i=0;i<6;i++) lastTurns[i]=0;
 			m_slicesDone=0; m_internalBad=0;
 		};
@@ -2310,9 +2395,7 @@ class PositionSolver {
 		int optimalMoves = -1;
 		m_dirtyBuf.clear();
 
-		// The preadf candidates run in PARALLEL, interleaved by depth: at each depth
-		// every candidate is searched before moving deeper, so the first solution
-		// returned (without -a) is the globally shortest across all candidates.
+		// candidates run in PARALLEL within the same depth
 		if (!specificDepths.empty()) {
 			for (int depth : specificDepths) {
 				if (metric == SLICE_METRIC && ((depth % 2 == 1 && sharedMiddle == 1) || (depth % 2 == 0 && sharedMiddle == -1))) {
@@ -2324,16 +2407,13 @@ class PositionSolver {
 				for (const auto& st : states) {
 					if (stopRequested.load()) return -1;
 					restore(st);
-					int searchResult = search(depth, 3, &nodes, twoGen, keepCubeShape, specificAngleTop, specificAngleBot);
+					int searchResult = search(depth, 1, &nodes, twoGen, keepCubeShape, specificAngleTop, specificAngleBot);
 					if (searchResult < 0) return searchResult;
-					// Slice metric stops only on a clean solution; a dirty one is buffered
-					// in case no clean turns up at this depth.
-					if (searchResult != 0 && !findAll && (metric != SLICE_METRIC || m_cleanFound)) { fp = fpOrig; m_preadfBot = 0; return 0; }
+					if (searchResult != 0 && !findAll && (metric != SLICE_METRIC || m_cleanFound)) { fp = fpOrig; m_preauf = 0; m_preadfBot = 0; return 0; }
 				}
-				if (metric == SLICE_METRIC && !m_cleanFound && emitDirtyBuffer() && !findAll) { fp = fpOrig; m_preadfBot = 0; return 0; }
+				if (metric == SLICE_METRIC && !m_cleanFound && emitDirtyBuffer() && !findAll) { fp = fpOrig; m_preauf = 0; m_preadfBot = 0; return 0; }
 			}
 		} else {
-			// only even lengths if slice metric and middle is square
 			int l=-1;
 			if (metric == SLICE_METRIC && sharedMiddle==1) l=-2;
 			while(true){
@@ -2345,17 +2425,15 @@ class PositionSolver {
 				for (const auto& st : states) {
 					if (stopRequested.load()) return -1;
 					restore(st);
-					int searchResult = search(l,3, &nodes, twoGen, keepCubeShape, specificAngleTop, specificAngleBot);
+					int searchResult = search(l, 1, &nodes, twoGen, keepCubeShape, specificAngleTop, specificAngleBot);
 					if (searchResult < 0) return searchResult;
 					if (searchResult != 0) {
 						anySol = true;
-						// Slice metric stops only on a clean solution; a dirty one is
-						// buffered in case no clean turns up at this depth.
-						if (!findAll && (metric != SLICE_METRIC || m_cleanFound)) { fp = fpOrig; m_preadfBot = 0; return 0; }
+						if (!findAll && (metric != SLICE_METRIC || m_cleanFound)) { fp = fpOrig; m_preauf = 0; m_preadfBot = 0; return 0; }
 					}
 				}
 				if (metric == SLICE_METRIC && !m_cleanFound) {
-					if (emitDirtyBuffer() && !findAll) { fp = fpOrig; m_preadfBot = 0; return 0; }
+					if (emitDirtyBuffer() && !findAll) { fp = fpOrig; m_preauf = 0; m_preadfBot = 0; return 0; }
 				}
 				if (anySol && optimalMoves == -1) optimalMoves = l;
 				if (optimalMoves != -1 &&
@@ -2364,8 +2442,8 @@ class PositionSolver {
 			}
 		}
 
-		// Restore original fp so callers see an unmodified position.
 		fp = fpOrig;
+		m_preauf = 0;
 		m_preadfBot = 0;
 		return 0;
 	}
@@ -2639,14 +2717,14 @@ class PositionSolver {
 					angle += (md<0?-md:md);
 				}
 			}
-			// Generator: the preadf sits at the start of the solve sequence, which
-			// becomes the END of the generating sequence — its inverse (-k) is added
-			// to whatever remains in md after the backward loop.
+			// Generator: preABF become the END, so their inverses fold into mu/md.
+			if (m_preauf != 0)
+				mu = normaliseMove(mu - m_preauf);
 			if (m_preadfBot != 0)
 				md = normaliseMove(md - m_preadfBot);
 		}else{
-			// Solver: preadf is the first thing that happens (a forward doBot(k) on the
-			// real cube), so seed md with +k before accumulating the rest of the moves.
+			// Solver: preABF happen first.
+			mu = normaliseMove(m_preauf);
 			md = normaliseMove(m_preadfBot);
 			for( int i=0; i<moveLen; i++){
 				if( moveList[i]==0 ) {
@@ -2858,16 +2936,13 @@ public:
 	int solve(int twoGen, int extraMoves, bool keepCubeShape) override {
 		m_cubeshape = keepCubeShape;
 		m_solutionFound = false;
-		// Partial-aware preadf detection doubles as the 2-gen / p2g solve guard:
-		// twoGenPreadf understands U/V/W/X/Y/Z pieces, so it returns every rotation
-		// that can bring a (possibly partially-specified) solved block to the frozen
-		// bottom-left.  Empty => not 2-genable.  twoGen==0 returns {0}.
-		auto preadfs = fp.findPreadf(twoGen);
-		if ((twoGen == 1 || twoGen == 2) && preadfs.empty()) return 19;
+		// (preAUF,preADF) pairs, 2-gen-filtered and symmetry-deduped, partial-aware
+		// via twoGenPreadf's U/V/W/X/Y/Z handling. Empty => not 2-genable, or
+		// nothing sliceable.
+		auto preABFs = symmetricPreABF(fp.pos, twoGen, specificAngleBot, specificAngleTop);
+		if (preABFs.empty()) return 19;
 
 		if (keepCubeShape) {
-			// check that it's in cube shape and of the right parity, and that the
-			// corner permutation is 2g (partial-aware, once per preadf).
 			if (!checkKeepCubeShape()) {
 				return 19;
 			}
@@ -2878,36 +2953,31 @@ public:
 
 		FullPosition fpOrig = fp;
 
-		// Build cubeshape-restricted dynamic pruning tables once from the
-		// original position (which pieces are known doesn't change with
-		// preadf rotations).  refreshDynIdx() inside set() recomputes the
-		// live colour index for each preadf candidate.
+		// Dynamic pruning tables depend only on which pieces are known, not on
+		// the preABF rotation, so build them once here.
 		if (keepCubeShape) buildDynamicTables(fpOrig.pos);
 
-		// Snapshot the full per-preadf start state.  PartialPositionSolver::doMove
-		// mutates fp and the extra shapes during search, and isSolved() reads fp, so
-		// everything must be restored before each search.  All candidates share the
-		// same middle (doBot doesn't change it), so the depth parity is common.
-		struct PreadfState {
+		struct PreABFState {
 			FullPosition fp;
-			int e0,e1,e2,c0,c1,c2,shp,shp2,shpx,shpx2,middle,preadf;
+			int e0,e1,e2,c0,c1,c2,shp,shp2,shpx,shpx2,middle,preauf,preadf;
 			std::vector<int> dynCornerIdx;
 			std::vector<int> dynEdgeIdx;
 		};
-		std::vector<PreadfState> states;
-		for (int k : preadfs) {
+		std::vector<PreABFState> states;
+		for (const auto& kv : preABFs) {
 			fp = fpOrig;
-			if (k != 0) fp.doBot(k);
+			if (kv.first  != 0) fp.doTop(kv.first);
+			if (kv.second != 0) fp.doBot(kv.second);
 			set(fp, findAll, ignoreTrans);
-			states.push_back({fp, e0,e1,e2,c0,c1,c2,shp,shp2,shpx,shpx2,middle,k, dynCornerIdx, dynEdgeIdx});
+			states.push_back({fp, e0,e1,e2,c0,c1,c2,shp,shp2,shpx,shpx2,middle,kv.first,kv.second, dynCornerIdx, dynEdgeIdx});
 		}
 		const int sharedMiddle = states[0].middle;
 
-		auto restore = [&](const PreadfState& st){
+		auto restore = [&](const PreABFState& st){
 			fp=st.fp;
 			e0=st.e0; e1=st.e1; e2=st.e2; c0=st.c0; c1=st.c1; c2=st.c2;
 			shp=st.shp; shp2=st.shp2; shpx=st.shpx; shpx2=st.shpx2;
-			middle=st.middle; m_preadfBot=st.preadf;
+			middle=st.middle; m_preauf=st.preauf; m_preadfBot=st.preadf;
 			dynCornerIdx=st.dynCornerIdx; dynEdgeIdx=st.dynEdgeIdx;
 			moveLen=0; for(int i=0;i<6;i++) lastTurns[i]=0;
 			m_slicesDone=0; m_internalBad=0;
@@ -2917,7 +2987,6 @@ public:
 		int optimalMoves = -1;
 		m_dirtyBuf.clear();
 
-		// preadf candidates run in parallel, interleaved by depth (see PositionSolver::solve).
 		if (!specificDepths.empty()) {
 			for (int depth : specificDepths) {
 				if (metric == SLICE_METRIC && ((depth % 2 == 1 && sharedMiddle == 1) || (depth % 2 == 0 && sharedMiddle == -1))) {
@@ -2929,13 +2998,11 @@ public:
 				for (const auto& st : states) {
 					if (stopRequested.load()) return -1;
 					restore(st);
-					int searchResult = search(depth, 3, &nodes, twoGen, keepCubeShape, specificAngleTop, specificAngleBot);
+					int searchResult = search(depth, 1, &nodes, twoGen, keepCubeShape, specificAngleTop, specificAngleBot);
 					if (searchResult < 0) return searchResult;
-					// Slice metric stops only on a clean solution; a dirty one is buffered
-					// in case no clean turns up at this depth.
-					if (searchResult != 0 && !findAll && (metric != SLICE_METRIC || m_cleanFound)) { fp = fpOrig; m_preadfBot = 0; return 0; }
+					if (searchResult != 0 && !findAll && (metric != SLICE_METRIC || m_cleanFound)) { fp = fpOrig; m_preauf = 0; m_preadfBot = 0; return 0; }
 				}
-				if (metric == SLICE_METRIC && !m_cleanFound && emitDirtyBuffer() && !findAll) { fp = fpOrig; m_preadfBot = 0; return 0; }
+				if (metric == SLICE_METRIC && !m_cleanFound && emitDirtyBuffer() && !findAll) { fp = fpOrig; m_preauf = 0; m_preadfBot = 0; return 0; }
 			}
 		} else {
 			int l=-1;
@@ -2949,17 +3016,15 @@ public:
 				for (const auto& st : states) {
 					if (stopRequested.load()) return -1;
 					restore(st);
-					int searchResult = search(l,3, &nodes, twoGen, keepCubeShape, specificAngleTop, specificAngleBot);
+					int searchResult = search(l, 1, &nodes, twoGen, keepCubeShape, specificAngleTop, specificAngleBot);
 					if (searchResult < 0) return searchResult;
 					if (searchResult != 0) {
 						anySol = true;
-						// Slice metric stops only on a clean solution; a dirty one is
-						// buffered in case no clean turns up at this depth.
-						if (!findAll && (metric != SLICE_METRIC || m_cleanFound)) { fp = fpOrig; m_preadfBot = 0; return 0; }
+						if (!findAll && (metric != SLICE_METRIC || m_cleanFound)) { fp = fpOrig; m_preauf = 0; m_preadfBot = 0; return 0; }
 					}
 				}
 				if (metric == SLICE_METRIC && !m_cleanFound) {
-					if (emitDirtyBuffer() && !findAll) { fp = fpOrig; m_preadfBot = 0; return 0; }
+					if (emitDirtyBuffer() && !findAll) { fp = fpOrig; m_preauf = 0; m_preadfBot = 0; return 0; }
 				}
 				if (anySol && optimalMoves == -1) optimalMoves = l;
 				if (optimalMoves != -1 &&
@@ -2969,6 +3034,7 @@ public:
 		}
 
 		fp = fpOrig;
+		m_preauf = 0;
 		m_preadfBot = 0;
 		return 0;
 	}
